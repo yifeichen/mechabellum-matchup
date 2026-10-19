@@ -39,8 +39,6 @@ testem.log
 /typings
 __screenshots__/
 
-# Synced from the repo root by scripts/sync-data.mjs
-/public/Unit Stats.csv
 
 # System files
 .DS_Store
