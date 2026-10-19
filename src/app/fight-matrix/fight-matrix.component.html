@@ -1,0 +1,13 @@
+<h2>HP left after the fight</h2>
+<p class="meta">
+  Rows are attackers, columns are defenders. Each side's time to kill gets the approach time for the
+  shorter-range unit added (range gap ÷ its speed); the faster effective TTK wins. The winner's
+  remaining HP reuses the TTK hit maths: each loser volley delivers loser models × splash target
+  hit-slots while in range (a shorter-range loser only fires after its approach), each winner model
+  needs ceil(model HP ÷ damage per attack) hits to drop with overkill on the killing hit wasted,
+  leftover hits only scratch the next survivor. Cell colour shows the fraction of the winner's own
+  squad HP that survives (green = flawless, red = barely won, grey = mutual destruction). Hover a
+  cell for the working.
+</p>
+
+<app-matrix-grid [columns]="units()" [cell]="cellFn" [sortValue]="sortValue" />

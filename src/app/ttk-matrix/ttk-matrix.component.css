@@ -1,0 +1,15 @@
+p.meta {
+  margin: 0 0 18px;
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 70ch;
+}
+
+code {
+  color: var(--mat-sys-on-surface);
+}
+
+.chip {
+  margin-right: 6px;
+  vertical-align: middle;
+  color: var(--mat-sys-on-surface);
+}

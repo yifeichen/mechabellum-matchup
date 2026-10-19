@@ -1,0 +1,24 @@
+<h1>Mechabellum match up calculator</h1>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+} @else if (rows()) {
+  @if (missing().length > 0) {
+    <mat-card class="warn" appearance="outlined">
+      <strong>Missing values in <code>Unit Stats.csv</code></strong>
+      <ul>
+        @for (entry of missing(); track entry.name) {
+          <li>{{ entry.name }}: {{ entry.fields.join(', ') }}</li>
+        }
+      </ul>
+    </mat-card>
+  }
+
+  <app-detail-analysis [units]="combat()" />
+
+  <app-ttk-matrix [units]="combat()" />
+
+  <app-fight-matrix [units]="combat()" />
+} @else {
+  <p class="meta">Loading…</p>
+}

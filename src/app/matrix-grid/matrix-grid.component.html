@@ -1,0 +1,28 @@
+<div class="wrap">
+  <table mat-table [dataSource]="dataSource" matSort [matSortDisableClear]="true" #sort="matSort">
+    <ng-container matColumnDef="unit">
+      <th mat-header-cell *matHeaderCellDef class="unit">attacker \ defender</th>
+      <td mat-cell *matCellDef="let row" class="unit">{{ row.name }}</td>
+    </ng-container>
+
+    @for (d of columns(); track d.name) {
+      <ng-container [matColumnDef]="d.name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header [title]="headerTip(d)">
+          {{ d.name }}
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [style.background]="cell()(row, d).background"
+          [class.na]="cell()(row, d).background === null"
+          [title]="cell()(row, d).tip"
+        >
+          {{ cell()(row, d).text }}
+        </td>
+      </ng-container>
+    }
+
+    <tr mat-header-row *matHeaderRowDef="columnNames()"></tr>
+    <tr mat-row *matRowDef="let row; columns: columnNames()"></tr>
+  </table>
+</div>

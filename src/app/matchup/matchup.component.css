@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  margin: 24px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+p.meta {
+  margin: 0 0 18px;
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 70ch;
+}
+
+p.error {
+  color: var(--mat-sys-error);
+}
+
+mat-card.warn {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  background: #fffbe6;
+  color: #5a4a00;
+  max-width: 70ch;
+  box-shadow: inset 3px 0 0 #c9a227;
+}
+
+.warn strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.warn ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+code {
+  color: var(--mat-sys-on-surface);
+}

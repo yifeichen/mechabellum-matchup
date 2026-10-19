@@ -1,0 +1,29 @@
+.mat-mdc-table .mat-mdc-header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.mat-mdc-table .mat-mdc-header-cell.unit {
+  left: 0;
+  z-index: 3;
+}
+
+.mat-mdc-table .mat-mdc-cell.unit {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--mat-sys-surface);
+  font-weight: 500;
+}
+
+.mat-mdc-table .mat-mdc-cell {
+  vertical-align: middle;
+}
+
+.mat-mdc-table .mat-mdc-cell.na {
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}

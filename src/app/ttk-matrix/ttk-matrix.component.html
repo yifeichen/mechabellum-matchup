@@ -1,0 +1,26 @@
+<p class="meta">
+  Rows are attackers, columns are defenders, computed in the browser straight from
+  <code>Unit Stats.csv</code>. Each cell is the time to destroy the defender's whole squad (shown
+  capped at {{ cap }}s): hits per model = ceil(model HP / damage per attack), multiplied by the
+  number of models in the defender's squad to get hit-slots needed, divided by the attacker's squad
+  size times the number of models its splash covers (models whose square unit width bodies overlap
+  the circular blast of radius splash/2, capped at the squad size) to get attack ticks, then
+  multiplied by the attack interval. Splash deals full damage with no falloff to every model in the
+  blast. Overkill on the last hit against each model is wasted and does not carry over to the next
+  model. Hover a cell for the working, click a column header to sort. Cells shown as -- cannot
+  engage: a ground-only attacker cannot hit an air defender.
+</p>
+
+<app-matrix-grid [columns]="units()" [cell]="cellFn" [sortValue]="sortValue" />
+
+<p class="meta">
+  colour: price-normalised time to kill (TTK × attacker price ÷ defender price), every cell ranked
+  from fastest to slowest around the matrix median
+  <strong>{{ colorScale().median.toFixed(1) }}</strong>
+  (green fastest, red slowest), each chip showing its value as a multiple of that median:
+  @for (stop of legend(); track stop.distance) {
+    <mat-basic-chip class="chip" [style.background]="stop.color">{{
+      formatRatio(stop.ratio)
+    }}</mat-basic-chip>
+  }
+</p>
