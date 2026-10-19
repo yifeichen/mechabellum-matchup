@@ -6,11 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "sync-data": "node scripts/sync-data.mjs",
-    "prestart": "node scripts/sync-data.mjs",
-    "prebuild": "node scripts/sync-data.mjs",
-    "pretest": "node scripts/sync-data.mjs"
+    "test": "ng test"
   },
   "private": true,
   "packageManager": "npm@11.11.0",
