@@ -24,7 +24,31 @@ jobs:
       run: npm ci
 
     - name: Build
-      run: npm run build -- --configuration production
+      run: npm run build -- --configuration production --base-href /${{ github.event.repository.name }}/
 
     - name: Run tests
       run: npm run test -- --watch=false
+
+    - name: Upload Pages artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: dist/web/browser
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
