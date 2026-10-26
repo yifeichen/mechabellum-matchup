@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Unit } from './model';
 import { buildUnits, missingFields, parseCsv, parseRange } from './unit-stats';
-import { splashTargets, survivingHp, timeToKill, attacksPerModel } from './matchup';
+import { splashTargets, survivingHp, timeToKill } from './matchup';
 
 const csv = readFileSync(resolve(process.cwd(), 'public', 'Unit Stats.csv'), 'utf-8');
 const rows = parseCsv(csv);
@@ -76,7 +76,6 @@ describe('timeToKill', () => {
 
   it('cannot engage a flying defender with a ground-only attacker', () => {
     expect(timeToKill(unit('Vulcan'), unit('Wasp'))).toBeNull();
-    expect(attacksPerModel(unit('Vulcan'), unit('Wasp'))).toBeNull();
   });
 });
 

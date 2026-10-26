@@ -12,7 +12,7 @@ function makeUnit(name: string, hp: number): Unit {
     atk: 10,
     shotsPerVolley: 1,
     interval: 1,
-    reach: 50,
+    range: 50,
     splash: 0,
     unitWidth: 2,
     speed: 10,
