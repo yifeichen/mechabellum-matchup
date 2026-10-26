@@ -143,7 +143,7 @@ describe('TtkMatrix sorting', () => {
     expect(rowNames(fixture)).toEqual(expected.map((unit) => unit.name));
   });
 
-  it('omits the volleys line when the defender has one model', () => {
+  it('omits the squad-shots line for a one-model defender', () => {
     const fixture = TestBed.createComponent(TtkMatrix);
     fixture.componentRef.setInput('units', [
       makeUnit('attacker', { squadSize: 2 }),
@@ -153,11 +153,12 @@ describe('TtkMatrix sorting', () => {
     TestBed.flushEffects();
 
     const tip = cellTip(fixture, 'attacker', 'defender');
-    expect(tip).not.toContain('number of volleys to kill the squad');
+    expect(tip).not.toContain('number of shots to kill the squad');
+    expect(tip).toContain('number of volleys to kill the squad');
     expect(tip).toContain('time to kill:');
   });
 
-  it('omits the time line for a single-model attacker firing one shot per volley', () => {
+  it('omits the volleys line for a single-model attacker firing one shot without splash', () => {
     const fixture = TestBed.createComponent(TtkMatrix);
     fixture.componentRef.setInput('units', [
       makeUnit('attacker', { squadSize: 1, shotsPerVolley: 1 }),
@@ -167,7 +168,22 @@ describe('TtkMatrix sorting', () => {
     TestBed.flushEffects();
 
     const tip = cellTip(fixture, 'attacker', 'defender');
+    expect(tip).toContain('number of shots to kill the squad');
+    expect(tip).not.toContain('number of volleys to kill the squad');
+    expect(tip).toContain('time to kill:');
+  });
+
+  it('includes the volleys line when splash hits multiple defender models', () => {
+    const fixture = TestBed.createComponent(TtkMatrix);
+    fixture.componentRef.setInput('units', [
+      makeUnit('attacker', { squadSize: 1, shotsPerVolley: 1, splash: 4 }),
+      makeUnit('defender', { squadSize: 2, unitWidth: 1 }),
+    ]);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    const tip = cellTip(fixture, 'attacker', 'defender');
     expect(tip).toContain('number of volleys to kill the squad');
-    expect(tip).not.toContain('time to kill:');
+    expect(tip).toContain('2 splash');
   });
 });
