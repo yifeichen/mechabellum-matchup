@@ -21,218 +21,32 @@
           }
         </mat-select>
       </mat-form-field>
-      <!-- keeps a third grid track so both pickers match the width of the
-           explanation cards in .report below (auto-fit collapses empty tracks) -->
-      <div aria-hidden="true"></div>
     </div>
 
     <div class="panels">
-      <mat-card class="panel" appearance="outlined">
-        <h3>
-          {{ r.a.name }} <span class="role">unit A</span>
-          <button type="button" mat-button class="reset" (click)="reset('left')">reset</button>
-        </h3>
-        <div class="fields">
-          @for (field of fields; track field.key) {
-            <mat-form-field subscriptSizing="dynamic">
-              <mat-label>{{ field.label }}</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                step="any"
-                [value]="r.a[field.key]"
-                (input)="setNumber('left', field.key, $event)"
-              />
-            </mat-form-field>
-          }
-        </div>
-        <div class="toggles">
-          <mat-checkbox [checked]="r.a.flying" (change)="setBool('left', 'flying', $event.checked)">
-            flying
-          </mat-checkbox>
-          <mat-checkbox
-            [checked]="r.a.targetsAir"
-            (change)="setBool('left', 'targetsAir', $event.checked)"
-          >
-            targets air
-          </mat-checkbox>
-        </div>
-      </mat-card>
-
-      <mat-card class="panel" appearance="outlined">
-        <h3>
-          {{ r.d.name }} <span class="role">unit B</span>
-          <button type="button" mat-button class="reset" (click)="reset('right')">reset</button>
-        </h3>
-        <div class="fields">
-          @for (field of fields; track field.key) {
-            <mat-form-field subscriptSizing="dynamic">
-              <mat-label>{{ field.label }}</mat-label>
-              <input
-                matInput
-                type="number"
-                min="0"
-                step="any"
-                [value]="r.d[field.key]"
-                (input)="setNumber('right', field.key, $event)"
-              />
-            </mat-form-field>
-          }
-        </div>
-        <div class="toggles">
-          <mat-checkbox
-            [checked]="r.d.flying"
-            (change)="setBool('right', 'flying', $event.checked)"
-          >
-            flying
-          </mat-checkbox>
-          <mat-checkbox
-            [checked]="r.d.targetsAir"
-            (change)="setBool('right', 'targetsAir', $event.checked)"
-          >
-            targets air
-          </mat-checkbox>
-        </div>
-      </mat-card>
-      <!-- keeps a third grid track so these cards match the width of the
-           explanation cards in .report below (auto-fit collapses empty tracks) -->
-      <div aria-hidden="true"></div>
+      <app-detail-side
+        [currentUnit]="r.a"
+        [opponent]="r.d"
+        (modifiedUnit)="onModified('left', $event)"
+      />
+      <app-detail-side
+        [currentUnit]="r.d"
+        [opponent]="r.a"
+        (modifiedUnit)="onModified('right', $event)"
+      />
     </div>
 
     <div class="report">
-      <mat-card class="way" appearance="outlined">
-        <h3>{{ r.aToB.attacker.name }} → {{ r.aToB.defender.name }}</h3>
-        @if (r.aToB.blocked; as reason) {
-          <p class="na">{{ reason }}</p>
-        } @else {
-          <ol>
-            <li>
-              damage per attack: {{ r.aToB.attacker.atk }} × {{ r.aToB.attacker.volley }} =
-              <b>{{ formatCount(r.aToB.attacker.damagePerAttack) }}</b>
-            </li>
-            <li>
-              hits per model: ceil({{ r.aToB.defender.hp }} ÷
-              {{ formatCount(r.aToB.attacker.damagePerAttack) }}) = <b>{{ r.aToB.perModel }}</b>
-            </li>
-            <li>
-              hit-slots needed: {{ r.aToB.perModel }} × {{ r.aToB.defender.squadSize }} models =
-              <b>{{ formatCount(r.aToB.hits) }}</b>
-            </li>
-            <li>splash targets covered: {{ r.aToB.targets }}</li>
-            <li>
-              slots per tick: {{ r.aToB.attacker.squadSize }} × {{ r.aToB.targets }} =
-              <b>{{ r.aToB.slots }}</b>
-            </li>
-            <li>
-              ticks: ceil({{ formatCount(r.aToB.hits) }} ÷ {{ r.aToB.slots }}) =
-              <b>{{ r.aToB.ticks }}</b>
-            </li>
-            <li>
-              time to kill: {{ r.aToB.ticks }} × {{ r.aToB.attacker.interval }}s =
-              <b>{{ seconds(r.aToB.ttk) }}</b>
-            </li>
-          </ol>
-        }
-      </mat-card>
-
-      <mat-card class="way" appearance="outlined">
-        <h3>{{ r.bToA.attacker.name }} → {{ r.bToA.defender.name }}</h3>
-        @if (r.bToA.blocked; as reason) {
-          <p class="na">{{ reason }}</p>
-        } @else {
-          <ol>
-            <li>
-              damage per attack: {{ r.bToA.attacker.atk }} × {{ r.bToA.attacker.volley }} =
-              <b>{{ formatCount(r.bToA.attacker.damagePerAttack) }}</b>
-            </li>
-            <li>
-              hits per model: ceil({{ r.bToA.defender.hp }} ÷
-              {{ formatCount(r.bToA.attacker.damagePerAttack) }}) = <b>{{ r.bToA.perModel }}</b>
-            </li>
-            <li>
-              hit-slots needed: {{ r.bToA.perModel }} × {{ r.bToA.defender.squadSize }} models =
-              <b>{{ formatCount(r.bToA.hits) }}</b>
-            </li>
-            <li>splash targets covered: {{ r.bToA.targets }}</li>
-            <li>
-              slots per tick: {{ r.bToA.attacker.squadSize }} × {{ r.bToA.targets }} =
-              <b>{{ r.bToA.slots }}</b>
-            </li>
-            <li>
-              ticks: ceil({{ formatCount(r.bToA.hits) }} ÷ {{ r.bToA.slots }}) =
-              <b>{{ r.bToA.ticks }}</b>
-            </li>
-            <li>
-              time to kill: {{ r.bToA.ticks }} × {{ r.bToA.attacker.interval }}s =
-              <b>{{ seconds(r.bToA.ttk) }}</b>
-            </li>
-          </ol>
-        }
-      </mat-card>
-
-      <mat-card class="way" appearance="outlined">
+      <mat-card class="way fight" appearance="outlined">
         <h3>the fight</h3>
         @if (!r.fight) {
           <p class="na">neither side can damage the other</p>
-        } @else {
-          <ol>
-            <li>
-              @if (r.gap > 0) {
-                approach: {{ r.shorter.name }} closes the {{ r.gap }} m range gap at
-                {{ r.shorter.speed }} m/s = <b>{{ seconds(r.fight.closingSeconds) }}</b>
-              } @else {
-                no approach: both sides are already in range
-              }
-            </li>
-            <li>
-              effective TTK: {{ r.a.name }} {{ seconds(r.fight.effectiveAttacker) }} vs
-              {{ r.d.name }} {{ seconds(r.fight.effectiveDefender) }}
-            </li>
-            @if (r.fight.winner === 'draw') {
-              <li class="win">draw — both squads go down at the same moment</li>
-            } @else if (r.fight.steps; as s) {
-              @if (r.winner; as w) {
-                @if (r.loser; as l) {
-                  <li class="win">{{ w.name }} wins the damage race</li>
-                  @if (s.perModel === null) {
-                    <li>{{ l.name }} never damages {{ w.name }} — winner finishes untouched</li>
-                    <li class="win">
-                      HP left: {{ formatCount(r.fight.hpLeft) }} / {{ formatCount(w.hpSquad) }} ({{
-                        pct(r.fight.hpLeft, w.hpSquad)
-                      }}%)
-                    </li>
-                  } @else {
-                    <li>
-                      {{ l.name }} starts firing at {{ seconds(s.loserClosing) }}, window until
-                      {{ seconds(s.firingWindow) }} of shooting
-                    </li>
-                    <li>
-                      volleys in window: floor({{ seconds(s.firingWindow) }} ÷ {{ l.interval }}s) =
-                      <b>{{ s.volleys }}</b>
-                    </li>
-                    <li>
-                      hits delivered: {{ s.volleys }} × {{ l.squadSize }} models ×
-                      {{ s.targets }} splash targets = <b>{{ formatCount(s.hits) }}</b>
-                    </li>
-                    <li>
-                      victim model needs {{ s.perModel }} hits → {{ s.killed }} of
-                      {{ w.squadSize }} killed, {{ s.leftover }} leftover
-                    </li>
-                    <li>
-                      scratch damage on the next model: {{ s.leftover }} ×
-                      {{ formatCount(l.damagePerAttack) }} = <b>{{ formatCount(s.scratch) }}</b>
-                    </li>
-                    <li class="win">
-                      HP left: ({{ w.squadSize }} − {{ s.killed }}) × {{ formatCount(w.hp) }} −
-                      {{ formatCount(s.scratch) }} = <b>{{ formatCount(r.fight.hpLeft) }}</b> /
-                      {{ formatCount(w.hpSquad) }} ({{ pct(r.fight.hpLeft, w.hpSquad) }}%)
-                    </li>
-                  }
-                }
-              }
-            }
-          </ol>
+        } @else if (r.fight; as fight) {
+          @defer (when open()) {
+            <app-fight-chart [a]="r.a" [d]="r.d" [fight]="fight" />
+          } @placeholder {
+            <div class="chart-placeholder"></div>
+          }
         }
       </mat-card>
     </div>

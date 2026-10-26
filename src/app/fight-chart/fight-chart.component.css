@@ -1,0 +1,68 @@
+:host {
+  display: block;
+}
+
+.chart-block {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 6px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 12px;
+}
+
+.chart-legend b,
+.chart-note .win {
+  color: var(--mat-sys-on-surface);
+}
+
+.key {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.key-a {
+  background: #2563eb;
+}
+
+.key-b {
+  background: #dc2626;
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-note {
+  margin: 6px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 12px;
+}
+
+.chart-note .win {
+  font-weight: 600;
+  color: #137333;
+}
+
+.na {
+  margin: 0;
+  color: var(--mat-sys-error);
+  font-size: 12px;
+}

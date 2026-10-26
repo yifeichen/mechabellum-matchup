@@ -8,9 +8,9 @@ export interface Unit {
   hp: number;
   squadSize: number;
   atk: number;
-  volley: number;
+  shotsPerVolley: number;
   interval: number;
-  reach: number;
+  range: number;
   splash: number;
   unitWidth: number;
   speed: number;

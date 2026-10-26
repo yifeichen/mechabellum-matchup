@@ -1,0 +1,35 @@
+@if (chart(); as c) {
+  <div class="chart-block">
+    <div class="chart-legend">
+      <span>
+        <span class="key key-a" aria-hidden="true"></span>
+        <b>{{ c.a.name }}</b> — {{ formatCount(c.a.finalHp) }} HP left
+      </span>
+      <span>
+        <span class="key key-b" aria-hidden="true"></span>
+        <b>{{ c.b.name }}</b> — {{ formatCount(c.b.finalHp) }} HP left
+      </span>
+    </div>
+    <div class="chart-wrap">
+      <canvas
+        baseChart
+        [type]="'line'"
+        [data]="data()"
+        [options]="options()"
+        [plugins]="plugins"
+        role="img"
+        [attr.aria-label]="'HP over time: ' + c.a.name + ' vs ' + c.b.name"
+      ></canvas>
+    </div>
+    <p class="chart-note">
+      @if (fight().winner === 'draw') {
+        <span class="win">draw</span> — both squads reach 0 HP at {{ seconds(c.duration) }}
+      } @else {
+        <span class="win">{{ winnerName() }}</span> wins with {{ formatCount(fight().hpLeft) }} HP
+        left after {{ seconds(c.duration) }}
+      }
+    </p>
+  </div>
+} @else {
+  <p class="na">the fight has no finite timeline</p>
+}

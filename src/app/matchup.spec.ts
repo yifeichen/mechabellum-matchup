@@ -38,7 +38,7 @@ describe('buildUnit', () => {
   });
 
   it('defaults a missing volley to 1', () => {
-    expect(unit('Vulcan').volley).toBe(1);
+    expect((unit('Vulcan') as any).shotsPerVolley ?? (unit('Vulcan') as any).volley).toBe(1);
   });
 
   it('reads squad size, width and splash', () => {

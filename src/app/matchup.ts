@@ -12,7 +12,7 @@ export function canAttack(unit: Unit): boolean {
   return unit.interval > 0 && unit.damagePerAttack > 0;
 }
 
-export function attacksPerModel(attacker: Unit, defender: Unit): number | null {
+export function nbShotsToKillOneModel(attacker: Unit, defender: Unit): number | null {
   if (!canAttack(attacker) || !canEngage(attacker, defender)) {
     return null;
   }
@@ -42,30 +42,121 @@ export function splashTargets(attacker: Unit, defender: Unit): number {
   return Math.max(1, Math.min(defender.squadSize, count));
 }
 
-export function hitsToKill(attacker: Unit, defender: Unit): number | null {
-  const perModel = attacksPerModel(attacker, defender);
+export function nbShotsToKillSquad(attacker: Unit, defender: Unit): number | null {
+  const perModel = nbShotsToKillOneModel(attacker, defender);
   if (perModel === null) {
     return null;
   }
   return perModel * defender.squadSize;
 }
 
-export function ticksToKill(attacker: Unit, defender: Unit): number | null {
-  const hits = hitsToKill(attacker, defender);
-  const perModel = attacksPerModel(attacker, defender);
-  if (hits === null || perModel === null) {
+export function nbVolleysToKill(attacker: Unit, defender: Unit): number | null {
+  const hitsNeeded = nbShotsToKillSquad(attacker, defender);
+  if (hitsNeeded === null) {
     return null;
   }
-  const slots = attacker.squadSize * splashTargets(attacker, defender);
-  return Math.ceil(hits / slots);
+  const shots = attacker.squadSize * splashTargets(attacker, defender);
+  return Math.ceil(hitsNeeded / shots);
 }
 
 export function timeToKill(attacker: Unit, defender: Unit): number | null {
-  const ticks = ticksToKill(attacker, defender);
+  const ticks = nbVolleysToKill(attacker, defender);
   if (ticks === null) {
     return null;
   }
   return ticks * attacker.interval;
+}
+
+export interface TimeToKillWithModelLosses {
+  time: number | null;
+  volleys: number;
+  attackerModelsRemaining: number;
+}
+
+function applyHitSlots(models: number[], slots: number, damagePerHit: number): void {
+  let remainingSlots = slots;
+  while (remainingSlots > 0) {
+    let targetIndex = -1;
+    for (let i = 0; i < models.length; i++) {
+      if (models[i] > 0 && (targetIndex < 0 || models[i] < models[targetIndex])) {
+        targetIndex = i;
+      }
+    }
+    if (targetIndex < 0) {
+      return;
+    }
+    const hitsToKill = Math.ceil(models[targetIndex] / damagePerHit);
+    const hits = Math.min(remainingSlots, hitsToKill);
+    models[targetIndex] = Math.max(0, models[targetIndex] - hits * damagePerHit);
+    remainingSlots -= hits;
+  }
+}
+
+function closingTime(unit: Unit, target: Unit): number {
+  if (unit.range >= target.range) {
+    return 0;
+  }
+  return unit.speed > 0 ? (target.range - unit.range) / unit.speed : Number.POSITIVE_INFINITY;
+}
+
+export function timeToKillWithModelLosses(
+  attacker: Unit,
+  defender: Unit,
+): TimeToKillWithModelLosses {
+  const attackerModels = Array.from({ length: attacker.squadSize }, () => attacker.hp);
+  const defenderModels = Array.from({ length: defender.squadSize }, () => defender.hp);
+  const initialAttackerCount = attackerModels.length;
+  let attackerVolleys = 0;
+  let nextAttackerVolley = canAttack(attacker) && canEngage(attacker, defender)
+    ? closingTime(attacker, defender) + attacker.interval
+    : Number.POSITIVE_INFINITY;
+  let nextDefenderVolley = canAttack(defender) && canEngage(defender, attacker)
+    ? closingTime(defender, attacker) + defender.interval
+    : Number.POSITIVE_INFINITY;
+
+  while (attackerModels.some((hp) => hp > 0) && defenderModels.some((hp) => hp > 0)) {
+    const time = Math.min(nextAttackerVolley, nextDefenderVolley);
+    if (!Number.isFinite(time)) {
+      break;
+    }
+
+    const attackerFires = Math.abs(nextAttackerVolley - time) < 1e-9;
+    const defenderFires = Math.abs(nextDefenderVolley - time) < 1e-9;
+    const attackerCount = attackerModels.filter((hp) => hp > 0).length;
+    const defenderCount = defenderModels.filter((hp) => hp > 0).length;
+    const hitsOnDefender = attackerFires
+      ? attackerCount *
+        splashTargets(attacker, { ...defender, squadSize: defenderCount })
+      : 0;
+    const hitsOnAttacker = defenderFires
+      ? defenderCount * splashTargets(defender, { ...attacker, squadSize: attackerCount })
+      : 0;
+
+    if (attackerFires) {
+      attackerVolleys++;
+      nextAttackerVolley += attacker.interval;
+    }
+    if (defenderFires) {
+      nextDefenderVolley += defender.interval;
+    }
+
+    applyHitSlots(defenderModels, hitsOnDefender, attacker.damagePerAttack);
+    applyHitSlots(attackerModels, hitsOnAttacker, defender.damagePerAttack);
+
+    if (!defenderModels.some((hp) => hp > 0)) {
+      return {
+        time,
+        volleys: attackerVolleys,
+        attackerModelsRemaining: attackerModels.filter((hp) => hp > 0).length,
+      };
+    }
+  }
+
+  return {
+    time: null,
+    volleys: attackerVolleys,
+    attackerModelsRemaining: attackerModels.filter((hp) => hp > 0).length,
+  };
 }
 
 // --------------------------------------------------------------------------- //
@@ -110,14 +201,16 @@ function fightOutcome(
     loser.interval > 0 && firingWindow > 0 ? Math.floor(firingWindow / loser.interval) : 0;
   const targets = splashTargets(loser, winner);
   const hits = volleys * loser.squadSize * targets;
-  const perModel = attacksPerModel(loser, winner);
+  const perModel = nbShotsToKillOneModel(loser, winner);
   let killed = 0;
   let leftover = 0;
   let scratch = 0;
-  if (volleys > 0 && perModel !== null) {
+  if (volleys > 0 && perModel !== null && perModel > 0) {
     killed = Math.min(winner.squadSize, Math.floor(hits / perModel));
-    leftover = hits % perModel;
-    scratch = Math.min(winner.hp, leftover * loser.damagePerAttack);
+    leftover = hits - killed * perModel;
+    if (killed < winner.squadSize) {
+      scratch = leftover * loser.damagePerAttack;
+    }
   }
   const hpLeft = Math.max(0, (winner.squadSize - killed) * winner.hp - scratch);
   return {
@@ -147,15 +240,15 @@ export function survivingHp(attacker: Unit, defender: Unit): FightResult | null 
   }
 
   const closing = (shorter: Unit, longer: Unit): number => {
-    const gap = longer.reach - shorter.reach;
+    const gap = longer.range - shorter.range;
     if (gap <= 0) {
       return 0;
     }
     return shorter.speed > 0 ? gap / shorter.speed : Number.POSITIVE_INFINITY;
   };
 
-  const closingA = attacker.reach < defender.reach ? closing(attacker, defender) : 0;
-  const closingB = defender.reach < attacker.reach ? closing(defender, attacker) : 0;
+  const closingA = attacker.range < defender.range ? closing(attacker, defender) : 0;
+  const closingB = defender.range < attacker.range ? closing(defender, attacker) : 0;
   const effectiveA = ttkA === null ? null : ttkA + closingA;
   const effectiveB = ttkB === null ? null : ttkB + closingB;
 

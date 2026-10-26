@@ -1,0 +1,95 @@
+<mat-card class="panel" appearance="outlined">
+  <h3>
+    {{ currentUnit().name }}
+    <button type="button" mat-button class="reset" (click)="reset()">reset</button>
+  </h3>
+  <form [formGroup]="form">
+    <div class="fields">
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>cost</mat-label>
+        <input matInput type="number" min="0" step="1" formControlName="price" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>HP</mat-label>
+        <input matInput type="number" min="0" step="1" formControlName="hp" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>squad size</mat-label>
+        <input matInput type="number" min="0" step="1" formControlName="squadSize" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>attack</mat-label>
+        <input matInput type="number" min="0" step="1" formControlName="atk" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>shots / volley</mat-label>
+        <input matInput type="number" min="0" step="1" formControlName="shotsPerVolley" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>interval</mat-label>
+        <input matInput type="number" min="0" step="0.1" formControlName="interval" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>range</mat-label>
+        <input matInput type="number" min="0" step="5" formControlName="range" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>splash</mat-label>
+        <input matInput type="number" min="0" step="0.1" formControlName="splash" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>width</mat-label>
+        <input matInput type="number" min="0" step="0.1" formControlName="unitWidth" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>speed</mat-label>
+        <input matInput type="number" min="0" step="0.1" formControlName="speed" />
+      </mat-form-field>
+    </div>
+    <div class="toggles">
+      <mat-checkbox formControlName="flying">flying</mat-checkbox>
+      <mat-checkbox formControlName="targetsAir">targets air</mat-checkbox>
+    </div>
+  </form>
+</mat-card>
+
+<mat-card class="way" appearance="outlined">
+  <h3>{{ report().attacker.name }} → {{ opponent().name }}</h3>
+  <p class="squad">
+    squad HP: <b>{{ formatCount(report().squadHp) }}</b> ({{ rate(report().hpPerCost) }}/cost) ·
+    squad DPS: <b>{{ rate(report().squadDps) }}</b> ({{ rate(report().dpsPerCost) }}/cost)
+  </p>
+  @if (report().blocked; as reason) {
+    <p class="na">{{ reason }}</p>
+  } @else {
+    <ol>
+      <li>
+        number of shots to kill one model: {{ report().shotsToKillOneModel }} = Math.ceil({{
+          report().defender.hp
+        }} hp / {{ report().attacker.damagePerAttack }} damage)
+      </li>
+      @if (report().defender.squadSize > 1) {
+        <li>
+          number of shots to kill the squad: {{ report().shotsToKillSquad }} =
+          {{ report().shotsToKillOneModel }} * {{ report().defender.squadSize }} squad size
+        </li>
+      }
+      @if (
+        report().attacker.squadSize > 1 ||
+        report().attacker.shotsPerVolley > 1 ||
+        report().modelsHitPerShot > 1
+      ) {
+        <li>
+          number of volleys to kill the squad: {{ report().volleysToKill }} = Math.ceil({{
+            report().shotsToKillSquad
+          }} / ({{ report().attacker.shotsPerVolley }} shots per volley *
+          {{ report().attacker.squadSize }} squad size * {{ report().modelsHitPerShot }} splash))
+        </li>
+      }
+      <li>
+        time to kill: {{ report().ttk }} = {{ report().volleysToKill }} *
+        {{ report().attacker.interval }} interval
+      </li>
+    </ol>
+  }
+</mat-card>

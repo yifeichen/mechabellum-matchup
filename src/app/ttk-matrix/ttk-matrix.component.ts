@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { Unit } from '../model';
 import { CellView, MatrixGrid } from '../matrix-grid/matrix-grid.component';
-import { attacksPerModel, hitsToKill, splashTargets, ticksToKill, timeToKill } from '../matchup';
+import { nbShotsToKillOneModel, nbShotsToKillSquad, splashTargets, nbVolleysToKill, timeToKill } from '../matchup';
 import { formatCount, formatRatio } from '../format';
 
 // Colour sweep matches the fight matrix: constant saturation, hue interpolated
@@ -133,21 +133,24 @@ export class TtkMatrix {
     if (ttk === null) {
       return 'cannot engage';
     }
-    const targets = splashTargets(attacker, defender);
-    const perModel = attacksPerModel(attacker, defender);
-    const hits = hitsToKill(attacker, defender);
-    const ticks = ticksToKill(attacker, defender);
-    const slots = attacker.squadSize * targets;
     const { median } = this.colorScale();
     const ratio = median > 0 ? this.normalized(ttk, attacker, defender) / median : 1;
-    return (
-      `${attacker.name} vs ${defender.name}: ${formatCount(perModel)} hits per model x ` +
-      `${formatCount(defender.squadSize)} models = ${formatCount(hits)} hit-slots; each ` +
-      `attack covers ${targets} model(s) (splash ${attacker.splash} m vs width ` +
-      `${defender.unitWidth} m), so ${attacker.squadSize} x ${targets} = ${slots} slots/tick = ` +
-      `${ticks} ticks x ${attacker.interval}s = ${ttk.toFixed(2)}s ` +
-      `(${formatCount(attacker.damagePerAttack)} damage per attack); price-normalised ` +
-      `${formatRatio(ratio)} the matrix median`
-    );
+    const lines = [
+      `${attacker.name} vs ${defender.name}:`,
+      `number of shots to kill one model: ${nbShotsToKillOneModel(attacker, defender)} = Math.ceil(${defender.hp} hp / ${attacker.damagePerAttack} damage) `,
+    ];
+    if (defender.squadSize > 1) {
+      lines.push(
+        `number of shots to kill the squad: ${nbShotsToKillSquad(attacker, defender)} = ${nbShotsToKillOneModel(attacker, defender)} * ${defender.squadSize} squad size `,
+      );
+    }
+    if (attacker.squadSize > 1 || attacker.shotsPerVolley > 1 || splashTargets(attacker, defender) > 1) {
+      lines.push(
+        `number of volleys to kill the squad: ${nbVolleysToKill(attacker, defender)} = Math.ceil(${nbShotsToKillSquad(attacker, defender)} / (${attacker.shotsPerVolley} shots per volley * ${attacker.squadSize} squad size * ${splashTargets(attacker, defender)} splash)) `,
+      );
+    }
+    lines.push(`time to kill: ${timeToKill(attacker, defender)} = ${nbVolleysToKill(attacker, defender)} * ${attacker.interval} interval `,);
+    lines.push(`${formatRatio(ratio)} the matrix median`);
+    return lines.join('\n');
   }
 }

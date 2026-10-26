@@ -1,0 +1,68 @@
+.panel {
+  padding: 10px 12px;
+}
+
+.panel h3,
+.way h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface);
+}
+
+.reset {
+  margin-left: auto;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 2px 10px;
+}
+
+.fields mat-form-field {
+  width: 100%;
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.way {
+  padding: 10px 12px;
+}
+
+.squad {
+  margin: 0 0 8px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 12px;
+}
+
+.squad b,
+.way b {
+  color: var(--mat-sys-on-surface);
+}
+
+.way ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 12px;
+}
+
+.way li {
+  margin-bottom: 4px;
+}
+
+.na {
+  margin: 0;
+  color: var(--mat-sys-error);
+  font-size: 12px;
+}

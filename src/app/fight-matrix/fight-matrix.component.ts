@@ -79,7 +79,7 @@ export class FightMatrix {
     const percent = winnerMax > 0 ? ((result.hpLeft / winnerMax) * 100).toFixed(0) : '0';
     const fmt = (value: number) => (Number.isFinite(value) ? `${value.toFixed(2)}s` : 'never');
     return (
-      `${a.name} (range ${a.reach} m, speed ${a.speed}) vs ${d.name} (range ${d.reach} m, ` +
+      `${a.name} (range ${a.range} m, speed ${a.speed}) vs ${d.name} (range ${d.range} m, ` +
       `speed ${d.speed}): effective TTK ${fmt(result.effectiveAttacker)} vs ` +
       `${fmt(result.effectiveDefender)} (${result.closingSeconds.toFixed(2)}s approach for the ` +
       `shorter-range unit); ` +

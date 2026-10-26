@@ -11,7 +11,7 @@ function makeUnit(name: string, patch: Partial<Unit>): Unit {
     hp: 100,
     squadSize: 1,
     atk: 10,
-    volley: 1,
+    shotsPerVolley: 1,
     interval: 1,
     reach: 50,
     splash: 0,
@@ -46,6 +46,24 @@ function columnTexts(fixture: ComponentFixture<TtkMatrix>, columnIndex: number):
     const cells = row.queryAll(By.css('td'));
     return cells[columnIndex + 1].nativeElement.textContent.trim();
   });
+}
+
+function cellTip(
+  fixture: ComponentFixture<TtkMatrix>,
+  attackerName: string,
+  defenderName: string,
+): string {
+  const headers = fixture.debugElement.queryAll(By.css('th[mat-sort-header]'));
+  const columnIndex = headers.findIndex(
+    (header) => header.nativeElement.textContent.trim() === defenderName,
+  );
+  const row = fixture.debugElement.queryAll(By.css('tbody tr')).find((candidate) => {
+    return candidate.query(By.css('td')).nativeElement.textContent.trim() === attackerName;
+  });
+  if (columnIndex < 0 || !row) {
+    throw new Error(`Could not find tooltip cell for ${attackerName} vs ${defenderName}`);
+  }
+  return row.queryAll(By.css('td'))[columnIndex + 1].nativeElement.title;
 }
 
 function clickHeader(fixture: ComponentFixture<TtkMatrix>, index: number): void {
@@ -123,5 +141,33 @@ describe('TtkMatrix sorting', () => {
       .sort((a, b) => (timeToKill(a, pivot) ?? Infinity) - (timeToKill(b, pivot) ?? Infinity))
       .reverse();
     expect(rowNames(fixture)).toEqual(expected.map((unit) => unit.name));
+  });
+
+  it('omits the volleys line when the defender has one model', () => {
+    const fixture = TestBed.createComponent(TtkMatrix);
+    fixture.componentRef.setInput('units', [
+      makeUnit('attacker', { squadSize: 2 }),
+      makeUnit('defender', { squadSize: 1 }),
+    ]);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    const tip = cellTip(fixture, 'attacker', 'defender');
+    expect(tip).not.toContain('number of volleys to kill the squad');
+    expect(tip).toContain('time to kill:');
+  });
+
+  it('omits the time line for a single-model attacker firing one shot per volley', () => {
+    const fixture = TestBed.createComponent(TtkMatrix);
+    fixture.componentRef.setInput('units', [
+      makeUnit('attacker', { squadSize: 1, shotsPerVolley: 1 }),
+      makeUnit('defender', { squadSize: 2 }),
+    ]);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    const tip = cellTip(fixture, 'attacker', 'defender');
+    expect(tip).toContain('number of volleys to kill the squad');
+    expect(tip).not.toContain('time to kill:');
   });
 });
