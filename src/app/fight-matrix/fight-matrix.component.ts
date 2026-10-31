@@ -1,7 +1,7 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { Unit } from '../model';
 import { CellView, MatrixGrid } from '../matrix-grid/matrix-grid.component';
-import { FightResult, survivingHp } from '../matchup';
+import { FightResult, MatchupService } from '../matchup.service';
 import { formatCount } from '../format';
 
 @Component({
@@ -11,6 +11,8 @@ import { formatCount } from '../format';
   styleUrl: './fight-matrix.component.css',
 })
 export class FightMatrix {
+  private readonly matchup = inject(MatchupService);
+
   readonly units = input.required<Unit[]>();
 
   protected readonly sortValue = (a: Unit, d: Unit): number | null =>
@@ -21,7 +23,7 @@ export class FightMatrix {
     const map = new Map<string, FightResult | null>();
     for (const a of units) {
       for (const d of units) {
-        map.set(`${a.name}\u0000${d.name}`, survivingHp(a, d));
+        map.set(`${a.name}\u0000${d.name}`, this.matchup.survivingHp(a, d));
       }
     }
     return map;

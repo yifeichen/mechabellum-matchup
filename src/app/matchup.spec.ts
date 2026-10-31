@@ -3,7 +3,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Unit } from './model';
 import { buildUnits, missingFields, parseCsv, parseRange } from './unit-stats';
-import { splashTargets, survivingHp, timeToKill } from './matchup';
+import { MatchupService } from './matchup.service';
+
+const matchup = new MatchupService();
 
 const csv = readFileSync(resolve(process.cwd(), 'public', 'Unit Stats.csv'), 'utf-8');
 const rows = parseCsv(csv);
@@ -71,23 +73,23 @@ describe('timeToKill', () => {
   ];
 
   it.each(cases)('%s vs %s = %s', (a, b, expected) => {
-    expect(timeToKill(unit(a), unit(b))).toBeCloseTo(expected, 6);
+    expect(matchup.timeToKill(unit(a), unit(b))).toBeCloseTo(expected, 6);
   });
 
   it('cannot engage a flying defender with a ground-only attacker', () => {
-    expect(timeToKill(unit('Vulcan'), unit('Wasp'))).toBeNull();
+    expect(matchup.timeToKill(unit('Vulcan'), unit('Wasp'))).toBeNull();
   });
 });
 
 describe('splashTargets', () => {
   it('counts grid squares the blast circle touches', () => {
-    expect(splashTargets(unit('Vulcan'), unit('Crawler'))).toBe(9);
-    expect(splashTargets(unit('Arclight'), unit('Fang'))).toBe(5);
+    expect(matchup.splashTargets(unit('Vulcan'), unit('Crawler'))).toBe(9);
+    expect(matchup.splashTargets(unit('Arclight'), unit('Fang'))).toBe(5);
   });
 
   it('treats single-target attacks as one model', () => {
-    expect(splashTargets(unit('Arclight'), unit('Mustang'))).toBe(1);
-    expect(splashTargets(unit('Vulcan'), unit('Typhoon'))).toBe(1);
+    expect(matchup.splashTargets(unit('Arclight'), unit('Mustang'))).toBe(1);
+    expect(matchup.splashTargets(unit('Vulcan'), unit('Typhoon'))).toBe(1);
   });
 });
 
@@ -98,7 +100,7 @@ describe('survivingHp', () => {
   });
 
   it('penalises the shorter-range unit with approach time', () => {
-    const result = survivingHp(unit('Vulcan'), unit('Crawler'));
+    const result = matchup.survivingHp(unit('Vulcan'), unit('Crawler'));
     if (!result) {
       throw new Error('expected a fight');
     }
@@ -118,7 +120,7 @@ describe('survivingHp', () => {
   });
 
   it('compares effective TTKs when ranges are equal', () => {
-    const result = survivingHp(unit('Arclight'), unit('Sledgehammer'));
+    const result = matchup.survivingHp(unit('Arclight'), unit('Sledgehammer'));
     if (!result) {
       throw new Error('expected a fight');
     }
@@ -140,7 +142,7 @@ describe('survivingHp', () => {
   });
 
   it('lets a ground-only defender never shoot back', () => {
-    const result = survivingHp(unit('Wasp'), unit('Arclight'));
+    const result = matchup.survivingHp(unit('Wasp'), unit('Arclight'));
     if (!result) {
       throw new Error('expected a fight');
     }
@@ -152,7 +154,7 @@ describe('survivingHp', () => {
     // hound wins on effective TTK (4.8s + 7s approach = 11.8s vs 15.5s); the
     // marksman's volleys land at 3.1/6.2/9.3s (the 4th at 12.4s is too late),
     // each one-shots a hound, so 2 of 5 survive
-    const result = survivingHp(unit('Marksman'), unit('Hound'));
+    const result = matchup.survivingHp(unit('Marksman'), unit('Hound'));
     if (!result) {
       throw new Error('expected a fight');
     }
@@ -163,7 +165,7 @@ describe('survivingHp', () => {
   it('does not let a losing side land its killing blow out of time', () => {
     // scorpion wins at 12.57s (9s + 25m/7), but the farseer needs 14s for
     // its 7th volley, so only 6 land: scorpion survives, scratched
-    const result = survivingHp(unit('Farseer'), unit('Scorpion'));
+    const result = matchup.survivingHp(unit('Farseer'), unit('Scorpion'));
     if (!result) {
       throw new Error('expected a fight');
     }
@@ -173,6 +175,6 @@ describe('survivingHp', () => {
 
   it('returns null when neither side can damage the other', () => {
     const flyer: Unit = { ...unit('Wasp'), targetsAir: false };
-    expect(survivingHp(flyer, { ...flyer, flying: true })).toBeNull();
+    expect(matchup.survivingHp(flyer, { ...flyer, flying: true })).toBeNull();
   });
 });

@@ -5,8 +5,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { Matchup } from './matchup.component';
 import { parseCsv, buildUnits, DEFAULT_SKIP } from '../unit-stats';
-import { canAttack, timeToKill } from '../matchup';
+import { MatchupService } from '../matchup.service';
 import { Unit } from '../model';
+
+const matchup = new MatchupService();
 
 const CSV_URL = 'Unit%20Stats.csv';
 
@@ -14,7 +16,7 @@ function loadUnits(): Unit[] {
   const csv = readFileSync('public/Unit Stats.csv', 'utf8');
   const skip = new Set(DEFAULT_SKIP.map((name) => name.trim().toLowerCase()));
   return buildUnits(parseCsv(csv)).filter(
-    (unit) => canAttack(unit) && !skip.has(unit.name.toLowerCase()),
+    (unit) => matchup.canAttack(unit) && !skip.has(unit.name.toLowerCase()),
   );
 }
 
@@ -80,8 +82,8 @@ describe('Matchup (full flow with real CSV)', () => {
       clickHeader(fixture, 0, headerIndex);
 
       const expected = [...units].sort((a, b) => {
-        const av = timeToKill(a, pivot);
-        const bv = timeToKill(b, pivot);
+        const av = matchup.timeToKill(a, pivot);
+        const bv = matchup.timeToKill(b, pivot);
         if (av === null || bv === null) {
           return av === bv ? 0 : av === null ? 1 : -1;
         }
@@ -113,12 +115,17 @@ describe('Matchup (full flow with real CSV)', () => {
     clickHeader(fixture, 0, 4);
     clickHeader(fixture, 0, 4);
 
-    const nonNull = units.filter((unit) => timeToKill(unit, pivot) !== null);
+    const nonNull = units.filter((unit) => matchup.timeToKill(unit, pivot) !== null);
     // Stable descending comparator, exactly as MatrixGrid applies it (ties keep base order).
     const expected = [...nonNull]
-      .sort((a, b) => (timeToKill(b, pivot) as number) - (timeToKill(a, pivot) as number))
+      .sort(
+        (a, b) =>
+          (matchup.timeToKill(b, pivot) as number) - (matchup.timeToKill(a, pivot) as number),
+      )
       .map((unit) => unit.name);
-    const nulls = units.filter((unit) => timeToKill(unit, pivot) === null).map((unit) => unit.name);
+    const nulls = units
+      .filter((unit) => matchup.timeToKill(unit, pivot) === null)
+      .map((unit) => unit.name);
 
     const rows = readRows(fixture, 0);
     expect(rows.map((cells) => cells[0])).toEqual([...expected, ...nulls]);

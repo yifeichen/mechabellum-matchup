@@ -11,10 +11,10 @@ import {
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { BaseChartDirective, provideCharts } from 'ng2-charts';
-import type { FightSeriesData } from '../fight-timeline';
-import { FightTimelineService } from '../fight-timeline';
+import type { FightSeriesData } from '../fight-timeline.service';
+import { FightTimelineService } from '../fight-timeline.service';
 import { formatCount } from '../format';
-import type { FightResult } from '../matchup';
+import type { FightResult } from '../matchup.service';
 import type { Unit } from '../model';
 import { lineTooltips } from './line-tooltips';
 

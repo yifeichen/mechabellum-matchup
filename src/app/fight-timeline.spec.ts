@@ -1,10 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { TestBed } from '@angular/core/testing';
 import type { Unit } from './model';
 import { buildUnits, parseCsv } from './unit-stats';
-import { survivingHp } from './matchup';
-import { buildFightChart, buildFightTimeline, hpAt, unionTimes } from './fight-timeline';
+import { MatchupService } from './matchup.service';
+import { FightTimelineService } from './fight-timeline.service';
+
+let matchup: MatchupService;
+let timelineService: FightTimelineService;
+
+beforeEach(() => {
+  TestBed.configureTestingModule({});
+  matchup = TestBed.inject(MatchupService);
+  timelineService = TestBed.inject(FightTimelineService);
+});
 
 const csv = readFileSync(resolve(process.cwd(), 'public', 'Unit Stats.csv'), 'utf-8');
 const units = buildUnits(parseCsv(csv));
@@ -21,12 +31,12 @@ function unit(name: string): Unit {
 function series(aName: string, bName: string) {
   const a = unit(aName);
   const b = unit(bName);
-  const fight = survivingHp(a, b);
+  const fight = matchup.survivingHp(a, b);
   if (!fight) {
     throw new Error(`no fight for ${aName} vs ${bName}`);
   }
-  const aSeries = buildFightTimeline(a, b, fight);
-  const bSeries = buildFightTimeline(b, a, fight);
+  const aSeries = timelineService.buildSeries(a, b, fight);
+  const bSeries = timelineService.buildSeries(b, a, fight);
   if (!aSeries || !bSeries) {
     throw new Error(`no series for ${aName} vs ${bName}`);
   }
@@ -36,11 +46,11 @@ function series(aName: string, bName: string) {
 function timeline(aName: string, bName: string) {
   const a = unit(aName);
   const b = unit(bName);
-  const fight = survivingHp(a, b);
+  const fight = matchup.survivingHp(a, b);
   if (!fight) {
     throw new Error(`no fight for ${aName} vs ${bName}`);
   }
-  const timeline = buildFightChart(a, b, fight);
+  const timeline = timelineService.buildChart(a, b, fight);
   if (!timeline) {
     throw new Error(`no timeline for ${aName} vs ${bName}`);
   }
@@ -90,14 +100,14 @@ describe('buildFightTimeline', () => {
   it('reads HP at the post-volley time', () => {
     const { aSeries, bSeries } = series('Marksman', 'Hound');
 
-    expect(hpAt(bSeries.points, 3)).toBe(unit('Hound').hpSquad);
-    expect(hpAt(bSeries.points, 3.1)).toBeLessThan(unit('Hound').hpSquad);
-    expect(hpAt(aSeries.points, 0)).toBe(unit('Marksman').hpSquad);
+    expect(timelineService.hpAt(bSeries.points, 3)).toBe(unit('Hound').hpSquad);
+    expect(timelineService.hpAt(bSeries.points, 3.1)).toBeLessThan(unit('Hound').hpSquad);
+    expect(timelineService.hpAt(aSeries.points, 0)).toBe(unit('Marksman').hpSquad);
   });
 
   it('builds a shared timeline from zero to the fight duration', () => {
     const { timeline: chart } = timeline('Marksman', 'Hound');
-    const times = unionTimes(chart.a.points, chart.b.points);
+    const times = timelineService.unionTimes(chart.a.points, chart.b.points);
 
     expect(times[0]).toBe(0);
     expect(times.at(-1)).toBeCloseTo(chart.duration, 6);

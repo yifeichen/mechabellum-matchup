@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Unit } from '../model';
-import { timeToKill } from '../matchup';
+import { MatchupService } from '../matchup.service';
 import { TtkMatrix } from './ttk-matrix.component';
+
+const matchup = new MatchupService();
 
 function makeUnit(name: string, patch: Partial<Unit>): Unit {
   return {
@@ -94,8 +96,8 @@ describe('TtkMatrix sorting', () => {
       clickHeader(fixture, headerIndex);
 
       const expected = [...list].sort((a, b) => {
-        const av = timeToKill(a, pivot);
-        const bv = timeToKill(b, pivot);
+        const av = matchup.timeToKill(a, pivot);
+        const bv = matchup.timeToKill(b, pivot);
         if (av === null || bv === null) {
           return av === bv ? 0 : av === null ? 1 : -1;
         }
@@ -138,7 +140,10 @@ describe('TtkMatrix sorting', () => {
     clickHeader(fixture, 1);
     clickHeader(fixture, 1);
     const expected = [...units()]
-      .sort((a, b) => (timeToKill(a, pivot) ?? Infinity) - (timeToKill(b, pivot) ?? Infinity))
+      .sort(
+        (a, b) =>
+          (matchup.timeToKill(a, pivot) ?? Infinity) - (matchup.timeToKill(b, pivot) ?? Infinity),
+      )
       .reverse();
     expect(rowNames(fixture)).toEqual(expected.map((unit) => unit.name));
   });

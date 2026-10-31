@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   effect,
+  inject,
   input,
   linkedSignal,
   OnInit,
@@ -14,15 +15,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { formatCount } from '../format';
-import {
-  nbShotsToKillOneModel,
-  canAttack,
-  canEngage,
-  nbShotsToKillSquad,
-  splashTargets,
-  nbVolleysToKill,
-  timeToKill,
-} from '../matchup';
+import { MatchupService } from '../matchup.service';
 import { Unit } from '../model';
 
 @Component({
@@ -39,6 +32,8 @@ import { Unit } from '../model';
   styleUrl: './detail-side.component.css',
 })
 export class DetailSide implements OnInit {
+  private readonly matchup = inject(MatchupService);
+
   readonly currentUnit = input.required<Unit>();
   readonly opponent = input.required<Unit>();
   readonly modifiedUnit = output<Unit>();
@@ -80,7 +75,7 @@ export class DetailSide implements OnInit {
   protected readonly report = computed(() => {
     const attacker = this.modified();
     const defender = this.opponent();
-    const modelsHitPerShot = splashTargets(attacker, defender);
+    const modelsHitPerShot = this.matchup.splashTargets(attacker, defender);
     const squadHp = attacker.hp * attacker.squadSize;
     const squadDps =
       attacker.interval > 0
@@ -90,10 +85,10 @@ export class DetailSide implements OnInit {
     const dpsPerCost = attacker.price > 0 && squadDps !== null ? squadDps / attacker.price : null;
 
     const blocked = this.blockedReason(attacker, defender);
-    const shotsToKillOneModel = nbShotsToKillOneModel(attacker, defender);
-    const shotsToKillSquad = nbShotsToKillSquad(attacker, defender);
-    const volleysToKill = nbVolleysToKill(attacker, defender);
-    const ttk = timeToKill(attacker, defender);
+    const shotsToKillOneModel = this.matchup.nbShotsToKillOneModel(attacker, defender);
+    const shotsToKillSquad = this.matchup.nbShotsToKillSquad(attacker, defender);
+    const volleysToKill = this.matchup.nbVolleysToKill(attacker, defender);
+    const ttk = this.matchup.timeToKill(attacker, defender);
 
     return {
       attacker,
@@ -134,10 +129,10 @@ export class DetailSide implements OnInit {
   }
 
   private blockedReason(attacker: Unit, defender: Unit): string | null {
-    if (!canAttack(attacker)) {
+    if (!this.matchup.canAttack(attacker)) {
       return `${attacker.name} cannot attack: interval or damage is zero`;
     }
-    if (!canEngage(attacker, defender)) {
+    if (!this.matchup.canEngage(attacker, defender)) {
       return `${attacker.name} cannot hit flying units`;
     }
     if (defender.hp <= 0) {

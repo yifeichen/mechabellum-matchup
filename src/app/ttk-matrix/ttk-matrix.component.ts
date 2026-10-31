@@ -1,9 +1,9 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { Unit } from '../model';
 import { CellView, MatrixGrid } from '../matrix-grid/matrix-grid.component';
-import { nbShotsToKillOneModel, nbShotsToKillSquad, splashTargets, nbVolleysToKill, timeToKill } from '../matchup';
-import { formatCount, formatRatio } from '../format';
+import { MatchupService } from '../matchup.service';
+import { formatRatio } from '../format';
 
 // Colour sweep matches the fight matrix: constant saturation, hue interpolated
 // red (slowest cell) -> yellow (mid rank) -> green (fastest cell), with the
@@ -25,9 +25,11 @@ function colorForDistance(distance: number): string {
   styleUrl: './ttk-matrix.component.css',
 })
 export class TtkMatrix {
+  private readonly matchup = inject(MatchupService);
+
   readonly units = input.required<Unit[]>();
 
-  protected readonly sortValue = timeToKill;
+  protected readonly sortValue = (a: Unit, d: Unit) => this.matchup.timeToKill(a, d);
 
   protected readonly cap = 99;
 
@@ -36,7 +38,7 @@ export class TtkMatrix {
     const values: number[] = [];
     for (const a of units) {
       for (const d of units) {
-        const ttk = timeToKill(a, d);
+        const ttk = this.matchup.timeToKill(a, d);
         if (ttk !== null) {
           values.push(this.normalized(ttk, a, d));
         }
@@ -113,7 +115,7 @@ export class TtkMatrix {
   }
 
   protected secondsText(attacker: Unit, defender: Unit): string {
-    const ttk = timeToKill(attacker, defender);
+    const ttk = this.matchup.timeToKill(attacker, defender);
     if (ttk === null) {
       return '--';
     }
@@ -121,7 +123,7 @@ export class TtkMatrix {
   }
 
   protected colorAt(attacker: Unit, defender: Unit): string | null {
-    const ttk = timeToKill(attacker, defender);
+    const ttk = this.matchup.timeToKill(attacker, defender);
     if (ttk === null) {
       return null;
     }
@@ -129,7 +131,7 @@ export class TtkMatrix {
   }
 
   protected tip(attacker: Unit, defender: Unit): string {
-    const ttk = timeToKill(attacker, defender);
+    const ttk = this.matchup.timeToKill(attacker, defender);
     if (ttk === null) {
       return 'cannot engage';
     }
@@ -137,19 +139,25 @@ export class TtkMatrix {
     const ratio = median > 0 ? this.normalized(ttk, attacker, defender) / median : 1;
     const lines = [
       `${attacker.name} vs ${defender.name}:`,
-      `number of shots to kill one model: ${nbShotsToKillOneModel(attacker, defender)} = Math.ceil(${defender.hp} hp / ${attacker.damagePerAttack} damage) `,
+      `number of shots to kill one model: ${this.matchup.nbShotsToKillOneModel(attacker, defender)} = Math.ceil(${defender.hp} hp / ${attacker.damagePerAttack} damage) `,
     ];
     if (defender.squadSize > 1) {
       lines.push(
-        `number of shots to kill the squad: ${nbShotsToKillSquad(attacker, defender)} = ${nbShotsToKillOneModel(attacker, defender)} * ${defender.squadSize} squad size `,
+        `number of shots to kill the squad: ${this.matchup.nbShotsToKillSquad(attacker, defender)} = ${this.matchup.nbShotsToKillOneModel(attacker, defender)} * ${defender.squadSize} squad size `,
       );
     }
-    if (attacker.squadSize > 1 || attacker.shotsPerVolley > 1 || splashTargets(attacker, defender) > 1) {
+    if (
+      attacker.squadSize > 1 ||
+      attacker.shotsPerVolley > 1 ||
+      this.matchup.splashTargets(attacker, defender) > 1
+    ) {
       lines.push(
-        `number of volleys to kill the squad: ${nbVolleysToKill(attacker, defender)} = Math.ceil(${nbShotsToKillSquad(attacker, defender)} / (${attacker.shotsPerVolley} shots per volley * ${attacker.squadSize} squad size * ${splashTargets(attacker, defender)} splash)) `,
+        `number of volleys to kill the squad: ${this.matchup.nbVolleysToKill(attacker, defender)} = Math.ceil(${this.matchup.nbShotsToKillSquad(attacker, defender)} / (${attacker.shotsPerVolley} shots per volley * ${attacker.squadSize} squad size * ${this.matchup.splashTargets(attacker, defender)} splash)) `,
       );
     }
-    lines.push(`time to kill: ${timeToKill(attacker, defender)} = ${nbVolleysToKill(attacker, defender)} * ${attacker.interval} interval `,);
+    lines.push(
+      `time to kill: ${this.matchup.timeToKill(attacker, defender)} = ${this.matchup.nbVolleysToKill(attacker, defender)} * ${attacker.interval} interval `,
+    );
     lines.push(`${formatRatio(ratio)} the matrix median`);
     return lines.join('\n');
   }

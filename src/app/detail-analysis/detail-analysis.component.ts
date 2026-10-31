@@ -1,11 +1,11 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { Unit } from '../model';
-import { survivingHp } from '../matchup';
+import { MatchupService } from '../matchup.service';
 import { FightChart } from '../fight-chart/fight-chart.component';
 import { DetailSide } from '../detail-side/detail-side.component';
 
@@ -24,6 +24,8 @@ import { DetailSide } from '../detail-side/detail-side.component';
   styleUrl: './detail-analysis.component.css',
 })
 export class DetailAnalysis {
+  private readonly matchup = inject(MatchupService);
+
   readonly units = input.required<Unit[]>();
 
   protected readonly open = signal(false);
@@ -72,7 +74,7 @@ export class DetailAnalysis {
     if (!a || !d || a.name === d.name) {
       return null;
     }
-    const fight = survivingHp(a, d);
+    const fight = this.matchup.survivingHp(a, d);
     return {
       a,
       d,
@@ -106,5 +108,4 @@ export class DetailAnalysis {
       this.selectedRight.set(copy);
     }
   }
-
 }

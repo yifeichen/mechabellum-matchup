@@ -2,8 +2,8 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { Row, Unit } from '../model';
 import { DEFAULT_SKIP, buildUnits, missingFields } from '../unit-stats';
-import { canAttack } from '../matchup';
 import { MatchupService } from '../matchup.service';
+import { UnitStatsService } from '../unit-stats.service';
 import { TtkMatrix } from '../ttk-matrix/ttk-matrix.component';
 import { FightMatrix } from '../fight-matrix/fight-matrix.component';
 import { DetailAnalysis } from '../detail-analysis/detail-analysis.component';
@@ -15,14 +15,15 @@ import { DetailAnalysis } from '../detail-analysis/detail-analysis.component';
   styleUrl: './matchup.component.css',
 })
 export class Matchup {
-  private readonly service = inject(MatchupService);
+  private readonly unitStats = inject(UnitStatsService);
+  private readonly matchup = inject(MatchupService);
 
   protected readonly rows = signal<Row[] | null>(null);
   protected readonly error = signal<string | null>(null);
 
   constructor() {
     effect((onCleanup) => {
-      const subscription = this.service.rows.subscribe({
+      const subscription = this.unitStats.rows.subscribe({
         next: (rows) => {
           this.error.set(null);
           this.rows.set(rows);
@@ -59,6 +60,8 @@ export class Matchup {
       return [];
     }
     const skip = new Set(DEFAULT_SKIP.map((name) => name.trim().toLowerCase()));
-    return buildUnits(rows).filter((unit) => canAttack(unit) && !skip.has(unit.name.toLowerCase()));
+    return buildUnits(rows).filter(
+      (unit) => this.matchup.canAttack(unit) && !skip.has(unit.name.toLowerCase()),
+    );
   });
 }

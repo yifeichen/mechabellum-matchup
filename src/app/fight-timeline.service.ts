@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import type { Unit } from './model';
-import { nbShotsToKillOneModel, splashTargets, nbVolleysToKill } from './matchup';
-import type { FightResult } from './matchup';
+import type { FightResult } from './matchup.service';
+import { MatchupService } from './matchup.service';
 
 export interface HpPoint {
   t: number;
@@ -28,6 +28,8 @@ export interface FightTimeline {
 
 @Injectable({ providedIn: 'root' })
 export class FightTimelineService {
+  private readonly matchup = inject(MatchupService);
+
   buildSeries(unit: Unit, opponent: Unit, fight: FightResult): FightSeriesData | null {
     const durations = [fight.effectiveAttacker, fight.effectiveDefender].filter((value) =>
       Number.isFinite(value),
@@ -89,16 +91,8 @@ export class FightTimelineService {
     return result;
   }
 
-  private closingTime(unit: Unit, target: Unit): number {
-    if (unit.range >= target.range) {
-      return 0;
-    }
-    const gap = target.range - unit.range;
-    return unit.speed > 0 ? gap / unit.speed : Number.POSITIVE_INFINITY;
-  }
-
   private bothInRangeTime(a: Unit, d: Unit, duration: number): number | null {
-    const time = Math.max(this.closingTime(a, d), this.closingTime(d, a));
+    const time = Math.max(this.matchup.closingTime(a, d), this.matchup.closingTime(d, a));
     return Number.isFinite(time) && time > 0 && time <= duration + 1e-9 ? time : null;
   }
 
@@ -110,20 +104,24 @@ export class FightTimelineService {
     return points;
   }
 
-  private hpSeries(attacker: Unit, target: Unit, duration: number): { points: HpPoint[]; deathTime: number | null; modelDeathTimes: number[] } {
+  private hpSeries(
+    attacker: Unit,
+    target: Unit,
+    duration: number,
+  ): { points: HpPoint[]; deathTime: number | null; modelDeathTimes: number[] } {
     const points: HpPoint[] = [{ t: 0, hp: target.hpSquad }];
-    const closing = this.closingTime(attacker, target);
-    const ticks = nbVolleysToKill(attacker, target);
+    const closing = this.matchup.closingTime(attacker, target);
+    const ticks = this.matchup.nbVolleysToKill(attacker, target);
     if (!Number.isFinite(closing) || ticks === null) {
       return { points, deathTime: null, modelDeathTimes: [] };
     }
 
-    const perModel = nbShotsToKillOneModel(attacker, target);
+    const perModel = this.matchup.nbShotsToKillOneModel(attacker, target);
     if (perModel === null) {
       return { points, deathTime: null, modelDeathTimes: [] };
     }
 
-    const slots = attacker.squadSize * splashTargets(attacker, target);
+    const slots = attacker.squadSize * this.matchup.splashTargets(attacker, target);
     let deathTime: number | null = null;
     const modelDeathTimes: number[] = [];
     let lastKilled = 0;
@@ -152,12 +150,3 @@ export class FightTimelineService {
     return { points, deathTime, modelDeathTimes };
   }
 }
-
-export const fightTimelineService = new FightTimelineService();
-export const buildFightTimeline = (unit: Unit, opponent: Unit, fight: FightResult) =>
-  fightTimelineService.buildSeries(unit, opponent, fight);
-export const buildFightChart = (a: Unit, d: Unit, fight: FightResult) =>
-  fightTimelineService.buildChart(a, d, fight);
-export const hpAt = (points: readonly HpPoint[], t: number) => fightTimelineService.hpAt(points, t);
-export const unionTimes = (a: readonly HpPoint[], b: readonly HpPoint[]) =>
-  fightTimelineService.unionTimes(a, b);
