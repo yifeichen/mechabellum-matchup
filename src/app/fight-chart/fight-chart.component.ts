@@ -3,6 +3,7 @@ import {
   ChartData,
   ChartDataset,
   ChartOptions,
+  Plugin,
   LinearScale,
   LineController,
   LineElement,
@@ -11,15 +12,20 @@ import {
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { BaseChartDirective, provideCharts } from 'ng2-charts';
-import type { FightSeriesData } from '../fight-timeline.service';
+import type { FightSeriesData, FightTimeline } from '../fight-timeline.service';
 import { FightTimelineService } from '../fight-timeline.service';
 import { formatCount } from '../format';
-import type { FightResult } from '../matchup.service';
 import type { Unit } from '../model';
 import { lineTooltips } from './line-tooltips';
 
 interface FightDataset extends ChartDataset<'line'> {
   startHp: number;
+}
+
+interface AxisAnnotation {
+  time: number;
+  text: string;
+  color: string;
 }
 
 @Component({
@@ -41,29 +47,45 @@ interface FightDataset extends ChartDataset<'line'> {
   styleUrl: './fight-chart.component.css',
 })
 export class FightChart {
-  private readonly timeline = inject(FightTimelineService);
+  private readonly timelineService = inject(FightTimelineService);
   readonly a = input.required<Unit>();
   readonly d = input.required<Unit>();
-  readonly fight = input.required<FightResult>();
-  protected readonly plugins = [lineTooltips];
+  protected readonly axisAnnotations = computed(() => {
+    const chart = this.chart();
+    return chart ? this.buildAxisAnnotations(chart) : [];
+  });
+  protected readonly chartHeight = 360;
+  protected readonly plugins: Plugin<'line'>[] = [
+    lineTooltips,
+    {
+      id: 'fightAxisAnnotations',
+      afterDraw: (chart) => this.drawAxisAnnotations(chart),
+    },
+  ];
   protected readonly formatCount = formatCount;
 
   protected readonly chart = computed(() =>
-    this.timeline.buildChart(this.a(), this.d(), this.fight()),
+    this.timelineService.buildChart(this.a(), this.d()),
   );
 
-  protected readonly winnerName = computed(() =>
-    this.fight().winner === 'attacker' ? this.a().name : this.d().name,
-  );
+  protected readonly winnerName = computed(() => {
+    const chart = this.chart();
+    if (!chart) {
+      return '';
+    }
+    return chart.fight.winner === 'attacker' ? chart.a.name : chart.b.name;
+  });
 
   protected readonly data = computed<ChartData<'line'>>(() => {
     const chart = this.chart();
     if (!chart) {
       return { datasets: [] };
     }
-    const times = this.timeline.unionTimes(chart.a.points, chart.b.points);
     return {
-      datasets: [this.dataset(chart.a, times, '#2563eb'), this.dataset(chart.b, times, '#dc2626')],
+      datasets: [
+        this.dataset(chart.a, '#2563eb'),
+        this.dataset(chart.b, '#dc2626'),
+      ],
     };
   });
 
@@ -72,87 +94,49 @@ export class FightChart {
     if (!chart) {
       return {};
     }
-    const bothInRange = chart.bothInRange;
     const annotations: Record<string, any> = {};
-    if (bothInRange !== null) {
+    if (chart.bothInRange !== null) {
       annotations['bothInRange'] = {
         type: 'line',
-        xMin: bothInRange,
-        xMax: bothInRange,
+        xMin: chart.bothInRange,
+        xMax: chart.bothInRange,
         borderColor: '#64748b',
         borderWidth: 1,
         borderDash: [4, 4],
-        label: {
-          display: true,
-          content: `both in range ${this.formatTime(bothInRange)}`,
-          position: 'start',
-          yAdjust: 52,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          borderColor: '#cbd5e1',
-          borderWidth: 1,
-          color: '#475569',
-          font: { size: 11 },
-          padding: 4,
-        },
       };
     }
-    const modelDeathTimesA = chart.a.modelDeathTimes ?? [];
-    modelDeathTimesA.forEach((t, idx) => {
-      const remaining = this.a().squadSize - (idx + 1);
-      const total = this.a().squadSize;
+    chart.a.modelDeathTimes?.forEach(([time], idx) => {
       annotations[`modelDeathA${idx}`] = {
         type: 'line',
-        xMin: t,
-        xMax: t,
+        xMin: time,
+        xMax: time,
         borderColor: '#2563eb',
         borderWidth: 1,
         borderDash: [2, 2],
-        label: {
-          display: true,
-          content: `(${remaining}/${total})`,
-          position: 'end',
-          yAdjust: 15 + idx * 12,
-          xAdjust: 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          borderColor: '#cbd5e1',
-          borderWidth: 1,
-          color: '#2563eb',
-          font: { size: 10 },
-          padding: 3,
-        },
       };
     });
-    const modelDeathTimesB = chart.b.modelDeathTimes ?? [];
-    modelDeathTimesB.forEach((t, idx) => {
-      const remaining = this.d().squadSize - (idx + 1);
-      const total = this.d().squadSize;
+    chart.b.modelDeathTimes?.forEach(([time], idx) => {
       annotations[`modelDeathB${idx}`] = {
         type: 'line',
-        xMin: t,
-        xMax: t,
+        xMin: time,
+        xMax: time,
         borderColor: '#dc2626',
         borderWidth: 1,
         borderDash: [2, 2],
-        label: {
-          display: true,
-          content: `(${remaining}/${total})`,
-          position: 'end',
-          yAdjust: 30 + idx * 12,
-          xAdjust: 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          borderColor: '#cbd5e1',
-          borderWidth: 1,
-          color: '#dc2626',
-          font: { size: 10 },
-          padding: 3,
-        },
       };
     });
     return {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
-      layout: { padding: { bottom: 60, top: 10, left: 10, right: 10 } },
+      layout: {
+        padding: {
+          bottom: 40,
+          top: 10,
+          left: 10,
+          right: 10,
+        },
+      },
       interaction: { mode: 'index', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: false },
@@ -200,10 +184,87 @@ export class FightChart {
     };
   });
 
-  private dataset(series: FightSeriesData, times: readonly number[], color: string): FightDataset {
+  private buildAxisAnnotations(chart: FightTimeline): AxisAnnotation[] {
+    const annotations: AxisAnnotation[] = [];
+    if (chart.bothInRange !== null) {
+      annotations.push({
+        time: chart.bothInRange,
+        text: `both in range ${this.formatTime(chart.bothInRange)}`,
+        color: '#64748b',
+      });
+    }
+
+    let deadA = 0;
+    chart.a.modelDeathTimes?.forEach(([time, count]) => {
+      deadA += count;
+      annotations.push({
+        time,
+        text: `(${chart.a.squadSize - deadA}/${chart.a.squadSize})`,
+        color: '#2563eb',
+      });
+    });
+
+    let deadB = 0;
+    chart.b.modelDeathTimes?.forEach(([time, count]) => {
+      deadB += count;
+      annotations.push({
+        time,
+        text: `(${chart.b.squadSize - deadB}/${chart.b.squadSize})`,
+        color: '#dc2626',
+      });
+    });
+
+    annotations.sort((left, right) => left.time - right.time);
+    const grouped: AxisAnnotation[] = [];
+    for (const annotation of annotations) {
+      const previous = grouped[grouped.length - 1];
+      if (previous && Math.abs(previous.time - annotation.time) < 1e-9) {
+        previous.text += ` · ${annotation.text}`;
+        previous.color = '#334155';
+      } else {
+        grouped.push({ ...annotation });
+      }
+    }
+    return grouped;
+  }
+
+  private drawAxisAnnotations(chart: Parameters<NonNullable<Plugin<'line'>['afterDraw']>>[0]): void {
+    const annotations = this.axisAnnotations();
+    if (annotations.length === 0) {
+      return;
+    }
+
+    const ctx = chart.ctx;
+    const xScale = chart.scales['x'];
+    const font = '10px Roboto, sans-serif';
+    const top = xScale.bottom + 8;
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    annotations.forEach((annotation) => {
+      const textWidth = ctx.measureText(annotation.text).width;
+      const width = textWidth + 8;
+      const height = 14;
+      const centerX = xScale.getPixelForValue(annotation.time);
+      const left = Math.max(2, Math.min(chart.width - width - 2, centerX - width / 2));
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      ctx.strokeStyle = annotation.color;
+      ctx.lineWidth = 1;
+      ctx.fillRect(left, top, width, height);
+      ctx.strokeRect(left, top, width, height);
+      ctx.fillStyle = annotation.color;
+      ctx.fillText(annotation.text, left + width / 2, top + height / 2);
+    });
+
+    ctx.restore();
+  }
+
+  private dataset(series: FightSeriesData, color: string): FightDataset {
     return {
       label: series.name,
-      data: times.map((t) => ({ x: t, y: this.timeline.hpAt(series.points, t) })),
+      data: series.points.map(({ t, hp }) => ({ x: t, y: hp })),
       startHp: series.startHp,
       borderColor: color,
       backgroundColor: color,
@@ -211,7 +272,7 @@ export class FightChart {
       fill: false,
       pointRadius: 0,
       pointHoverRadius: 0,
-      stepped: 'after',
+      stepped: 'before',
     };
   }
 

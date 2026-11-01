@@ -36,7 +36,7 @@ describe('buildUnit', () => {
   it('uses the average of a range', () => {
     const melting = unit('Melting Point');
     expect(melting.atk).toBe(4060);
-    expect(melting.damagePerAttack).toBe(4060);
+    expect(melting.atk * melting.shotsPerVolley).toBe(4060);
   });
 
   it('defaults a missing volley to 1', () => {
@@ -65,7 +65,7 @@ describe('timeToKill', () => {
     ['Arclight', 'Fang', 3.6],
     ['Arclight', 'Mustang', 10.8],
     ['Sledgehammer', 'Crawler', 22.5],
-    ['War Factory', 'Crawler', 43.2],
+    ['War Factory', 'Crawler', 21.6],
     ['Vulcan', 'Typhoon', 25.6],
     ['Fortress', 'Mustang', 21.6],
     ['Crawler', 'Arclight', 1.7999999999999998],

@@ -41,9 +41,9 @@
         <h3>the fight</h3>
         @if (!r.fight) {
           <p class="na">neither side can damage the other</p>
-        } @else if (r.fight; as fight) {
+        } @else {
           @defer (when open()) {
-            <app-fight-chart [a]="r.a" [d]="r.d" [fight]="fight" />
+            <app-fight-chart [a]="r.a" [d]="r.d" />
           } @placeholder {
             <div class="chart-placeholder"></div>
           }

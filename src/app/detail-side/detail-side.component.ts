@@ -33,6 +33,7 @@ import { Unit } from '../model';
 })
 export class DetailSide implements OnInit {
   private readonly matchup = inject(MatchupService);
+  private originalUnit: Unit | null = null;
 
   readonly currentUnit = input.required<Unit>();
   readonly opponent = input.required<Unit>();
@@ -54,7 +55,14 @@ export class DetailSide implements OnInit {
   });
   private readonly syncFormEffect = effect(() => {
     const unit = this.currentUnit();
-    const values = {
+    if (this.originalUnit?.name !== unit.name) {
+      this.originalUnit = unit;
+    }
+    this.form.setValue(this.formValues(unit), { emitEvent: false });
+  });
+
+  private formValues(unit: Unit) {
+    return {
       price: unit.price,
       hp: unit.hp,
       squadSize: unit.squadSize,
@@ -68,8 +76,7 @@ export class DetailSide implements OnInit {
       flying: unit.flying,
       targetsAir: unit.targetsAir,
     };
-    this.form.setValue(values, { emitEvent: false });
-  });
+  }
 
   protected readonly formatCount = formatCount;
   protected readonly report = computed(() => {
@@ -79,7 +86,7 @@ export class DetailSide implements OnInit {
     const squadHp = attacker.hp * attacker.squadSize;
     const squadDps =
       attacker.interval > 0
-        ? (attacker.damagePerAttack * attacker.squadSize) / attacker.interval
+        ? (attacker.atk * attacker.shotsPerVolley * attacker.squadSize) / attacker.interval
         : null;
     const hpPerCost = attacker.price > 0 ? squadHp / attacker.price : null;
     const dpsPerCost = attacker.price > 0 && squadDps !== null ? squadDps / attacker.price : null;
@@ -111,7 +118,6 @@ export class DetailSide implements OnInit {
       const values = this.form.getRawValue();
       const unit = { ...this.modified(), ...values };
       unit.hpSquad = unit.hp * unit.squadSize;
-      unit.damagePerAttack = unit.atk * unit.shotsPerVolley;
       this.modified.set(unit);
       this.modifiedUnit.emit(unit);
     });
@@ -125,7 +131,9 @@ export class DetailSide implements OnInit {
   }
 
   protected reset(): void {
-    this.form.patchValue(this.currentUnit());
+    if (this.originalUnit) {
+      this.form.reset(this.formValues(this.originalUnit));
+    }
   }
 
   private blockedReason(attacker: Unit, defender: Unit): string | null {

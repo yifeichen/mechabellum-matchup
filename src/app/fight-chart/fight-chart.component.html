@@ -10,7 +10,7 @@
         <b>{{ c.b.name }}</b> — {{ formatCount(c.b.finalHp) }} HP left
       </span>
     </div>
-    <div class="chart-wrap">
+    <div class="chart-wrap" [style.height.px]="chartHeight">
       <canvas
         baseChart
         [type]="'line'"
@@ -22,10 +22,10 @@
       ></canvas>
     </div>
     <p class="chart-note">
-      @if (fight().winner === 'draw') {
+      @if (c.fight.winner === 'draw') {
         <span class="win">draw</span> — both squads reach 0 HP at {{ seconds(c.duration) }}
       } @else {
-        <span class="win">{{ winnerName() }}</span> wins with {{ formatCount(fight().hpLeft) }} HP
+        <span class="win">{{ winnerName() }}</span> wins with {{ formatCount(c.fight.hpLeft) }} HP
         left after {{ seconds(c.duration) }}
       }
     </p>

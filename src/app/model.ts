@@ -17,5 +17,4 @@ export interface Unit {
   flying: boolean;
   targetsAir: boolean;
   hpSquad: number;
-  damagePerAttack: number;
 }

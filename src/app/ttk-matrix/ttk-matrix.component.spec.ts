@@ -22,7 +22,6 @@ function makeUnit(name: string, patch: Partial<Unit>): Unit {
     flying: false,
     targetsAir: false,
     hpSquad: 100,
-    damagePerAttack: 10,
     ...patch,
   };
 }
@@ -30,10 +29,10 @@ function makeUnit(name: string, patch: Partial<Unit>): Unit {
 // Different intervals/squads so each defender column yields a distinct row order.
 function units(): Unit[] {
   return [
-    makeUnit('fast', { interval: 1, damagePerAttack: 10, hp: 100, squadSize: 1 }),
-    makeUnit('slow', { interval: 3, damagePerAttack: 10, hp: 100, squadSize: 1 }),
-    makeUnit('swarm', { interval: 1, damagePerAttack: 10, hp: 50, squadSize: 4 }),
-    makeUnit('thick', { interval: 2, damagePerAttack: 25, hp: 500, squadSize: 6 }),
+    makeUnit('fast', { interval: 1, hp: 100, squadSize: 1 }),
+    makeUnit('slow', { interval: 3, hp: 100, squadSize: 1 }),
+    makeUnit('swarm', { interval: 1, hp: 50, squadSize: 4 }),
+    makeUnit('thick', { interval: 2, atk: 25, hp: 500, squadSize: 6 }),
   ];
 }
 

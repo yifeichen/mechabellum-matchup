@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -54,19 +54,16 @@ export class DetailAnalysis {
   protected readonly selectedLeft = signal<Unit | null>(null);
   protected readonly selectedRight = signal<Unit | null>(null);
 
-  constructor() {
-    // keep signals in sync when base changes
-    setInterval(() => {
-      const bl = this.baseLeft();
-      const br = this.baseRight();
-      if (bl && this.selectedLeft() !== bl) {
-        this.selectedLeft.set({ ...bl });
-      }
-      if (br && this.selectedRight() !== br) {
-        this.selectedRight.set({ ...br });
-      }
-    }, 0);
-  }
+  private readonly syncSelectedUnits = effect(() => {
+    const left = this.baseLeft();
+    const right = this.baseRight();
+    if (left && this.selectedLeft() !== left) {
+      this.selectedLeft.set(left);
+    }
+    if (right && this.selectedRight() !== right) {
+      this.selectedRight.set(right);
+    }
+  });
 
   protected readonly report = computed(() => {
     const a = this.selectedLeft();
@@ -74,11 +71,10 @@ export class DetailAnalysis {
     if (!a || !d || a.name === d.name) {
       return null;
     }
-    const fight = this.matchup.survivingHp(a, d);
     return {
       a,
       d,
-      fight,
+      fight: this.matchup.survivingHp(a, d),
     };
   });
 
@@ -87,7 +83,6 @@ export class DetailAnalysis {
     if (found) {
       const copy = { ...found };
       copy.hpSquad = copy.hp * copy.squadSize;
-      copy.damagePerAttack = copy.atk * copy.shotsPerVolley;
       if (side === 'left') {
         this.modifiedLeft.set(copy);
         this.selectedLeft.set(copy);
@@ -101,10 +96,11 @@ export class DetailAnalysis {
   protected onModified(side: 'left' | 'right', unit: Unit): void {
     const copy = { ...unit };
     copy.hpSquad = copy.hp * copy.squadSize;
-    copy.damagePerAttack = copy.atk * copy.shotsPerVolley;
     if (side === 'left') {
+      this.modifiedLeft.set(copy);
       this.selectedLeft.set(copy);
     } else {
+      this.modifiedRight.set(copy);
       this.selectedRight.set(copy);
     }
   }

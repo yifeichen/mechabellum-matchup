@@ -4,15 +4,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import type { Unit } from './model';
 import { buildUnits, parseCsv } from './unit-stats';
-import { MatchupService } from './matchup.service';
 import { FightTimelineService } from './fight-timeline.service';
 
-let matchup: MatchupService;
 let timelineService: FightTimelineService;
 
 beforeEach(() => {
   TestBed.configureTestingModule({});
-  matchup = TestBed.inject(MatchupService);
   timelineService = TestBed.inject(FightTimelineService);
 });
 
@@ -31,34 +28,25 @@ function unit(name: string): Unit {
 function series(aName: string, bName: string) {
   const a = unit(aName);
   const b = unit(bName);
-  const fight = matchup.survivingHp(a, b);
-  if (!fight) {
-    throw new Error(`no fight for ${aName} vs ${bName}`);
+  const chart = timelineService.buildChart(a, b);
+  if (!chart) {
+    throw new Error(`no timeline for ${aName} vs ${bName}`);
   }
-  const aSeries = timelineService.buildSeries(a, b, fight);
-  const bSeries = timelineService.buildSeries(b, a, fight);
-  if (!aSeries || !bSeries) {
-    throw new Error(`no series for ${aName} vs ${bName}`);
-  }
-  return { fight, aSeries, bSeries };
+  return { fight: chart.fight, aSeries: chart.a, bSeries: chart.b };
 }
 
 function timeline(aName: string, bName: string) {
   const a = unit(aName);
   const b = unit(bName);
-  const fight = matchup.survivingHp(a, b);
-  if (!fight) {
-    throw new Error(`no fight for ${aName} vs ${bName}`);
-  }
-  const timeline = timelineService.buildChart(a, b, fight);
+  const timeline = timelineService.buildChart(a, b);
   if (!timeline) {
     throw new Error(`no timeline for ${aName} vs ${bName}`);
   }
-  return { fight, timeline };
+  return { fight: timeline.fight, timeline };
 }
 
 describe('buildFightTimeline', () => {
-  it('builds one unit series per call', () => {
+  it('builds both series and the outcome from one combat timeline', () => {
     const { fight, aSeries, bSeries } = series('Vulcan', 'Crawler');
 
     expect(aSeries.name).toBe('Vulcan');
@@ -69,19 +57,18 @@ describe('buildFightTimeline', () => {
     expect(bSeries.finalHp).toBe(0);
   });
 
-  it('ends both series at the fight duration', () => {
-    const { aSeries, bSeries } = series('Vulcan', 'Crawler');
+  it('ends both series at the simulation terminal time', () => {
+    const { fight, aSeries, bSeries } = series('Vulcan', 'Crawler');
 
-    expect(aSeries.duration).toBeCloseTo(1.1, 6);
-    expect(bSeries.duration).toBeCloseTo(1.1, 6);
-    expect(aSeries.points.at(-1)).toEqual({ t: aSeries.duration, hp: aSeries.finalHp });
-    expect(bSeries.points.at(-1)?.t).toBeCloseTo(bSeries.duration, 6);
+    expect(aSeries.points.at(-1)?.t).toBeCloseTo(1.2, 6);
+    expect(aSeries.points.at(-1)?.hp).toBe(fight.hpLeft);
+    expect(bSeries.points.at(-1)).toEqual({ t: aSeries.points.at(-1)?.t, hp: 0 });
   });
 
   it('marks the moment the shorter-range unit closes inside the fight', () => {
     const { timeline: chart } = timeline('Marksman', 'Hound');
 
-    expect(chart.duration).toBeCloseTo(11.8, 6);
+    expect(chart.duration).toBeCloseTo(15.5, 6);
     expect(chart.bothInRange).toBeCloseTo(7, 6);
   });
 
@@ -97,20 +84,101 @@ describe('buildFightTimeline', () => {
     expect(chart.bothInRange).toBeNull();
   });
 
-  it('reads HP at the post-volley time', () => {
-    const { aSeries, bSeries } = series('Marksman', 'Hound');
+  it('applies each faster attacker volley between defender volleys', () => {
+    const fastAttacker: Unit = {
+      ...unit('Vulcan'),
+      hp: 100,
+      hpSquad: 100,
+      squadSize: 1,
+      atk: 10,
+      interval: 1,
+      range: 100,
+    };
+    const slowDefender: Unit = {
+      ...unit('Crawler'),
+      hp: 100,
+      hpSquad: 100,
+      squadSize: 1,
+      atk: 10,
+      interval: 3,
+      range: 100,
+    };
+    const defenderSeries = timelineService.buildSeries(slowDefender, fastAttacker);
+    if (!defenderSeries) {
+      throw new Error('no series for slow defender');
+    }
 
-    expect(timelineService.hpAt(bSeries.points, 3)).toBe(unit('Hound').hpSquad);
-    expect(timelineService.hpAt(bSeries.points, 3.1)).toBeLessThan(unit('Hound').hpSquad);
-    expect(timelineService.hpAt(aSeries.points, 0)).toBe(unit('Marksman').hpSquad);
+    expect(defenderSeries.points.slice(0, 4)).toEqual([
+      { t: 0, hp: 100 },
+      { t: 1, hp: 90 },
+      { t: 2, hp: 80 },
+      { t: 3, hp: 70 },
+    ]);
+  });
+
+  it('records multiple model deaths at one volley as one grouped event', () => {
+    const attacker: Unit = {
+      ...unit('Vulcan'),
+      hp: 100,
+      hpSquad: 300,
+      squadSize: 3,
+      atk: 10,
+      interval: 0.5,
+      range: 100,
+    };
+    const defender: Unit = {
+      ...unit('Crawler'),
+      hp: 10,
+      hpSquad: 30,
+      squadSize: 3,
+      interval: 0,
+      range: 100,
+    };
+    const chart = timelineService.buildChart(attacker, defender);
+
+    expect(chart?.b.modelDeathTimes).toEqual([[0.5, 3]]);
+  });
+
+  it('applies every shot in a volley to individual models', () => {
+    const attacker: Unit = {
+      ...unit('Vulcan'),
+      hp: 100,
+      hpSquad: 100,
+      squadSize: 1,
+      atk: 10,
+      shotsPerVolley: 3,
+      splash: 0,
+      interval: 1,
+      range: 100,
+    };
+    const defender: Unit = {
+      ...unit('Crawler'),
+      hp: 20,
+      hpSquad: 60,
+      squadSize: 3,
+      atk: 0,
+      interval: 0,
+      range: 100,
+    };
+    const chart = timelineService.buildChart(attacker, defender);
+
+    expect(chart?.b.points).toContainEqual({ t: 1, hp: 30 });
+    expect(chart?.b.modelDeathTimes).toEqual([
+      [1, 1],
+      [2, 2],
+    ]);
   });
 
   it('builds a shared timeline from zero to the fight duration', () => {
-    const { timeline: chart } = timeline('Marksman', 'Hound');
-    const times = timelineService.unionTimes(chart.a.points, chart.b.points);
+    const { fight, timeline: chart } = timeline('Marksman', 'Hound');
 
-    expect(times[0]).toBe(0);
-    expect(times.at(-1)).toBeCloseTo(chart.duration, 6);
-    expect(times).toEqual([...times].sort((left, right) => left - right));
+    expect(chart.fight).toEqual(fight);
+    for (const series of [chart.a, chart.b]) {
+      expect(series.points[0].t).toBe(0);
+      expect(series.points.at(-1)?.t).toBeCloseTo(chart.duration, 6);
+      expect(series.points.map(({ t }) => t)).toEqual(
+        [...series.points.map(({ t }) => t)].sort((left, right) => left - right),
+      );
+    }
   });
 });

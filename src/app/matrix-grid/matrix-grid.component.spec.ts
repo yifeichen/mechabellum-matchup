@@ -19,7 +19,6 @@ function makeUnit(name: string, hp: number): Unit {
     flying: false,
     targetsAir: false,
     hpSquad: hp,
-    damagePerAttack: 10,
   };
 }
 

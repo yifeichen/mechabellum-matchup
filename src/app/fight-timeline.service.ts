@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import type { Unit } from './model';
-import type { FightResult } from './matchup.service';
 import { MatchupService } from './matchup.service';
 
 export interface HpPoint {
@@ -8,17 +7,25 @@ export interface HpPoint {
   hp: number;
 }
 
+export type ModelDeathTime = [deathTime: number, modelCount: number];
+
 export interface FightSeriesData {
   name: string;
+  squadSize: number;
   startHp: number;
   finalHp: number;
-  duration: number;
   points: HpPoint[];
   deathTime?: number | null;
-  modelDeathTimes?: number[];
+  modelDeathTimes?: ModelDeathTime[];
+}
+
+export interface FightTimelineOutcome {
+  winner: 'attacker' | 'defender' | 'draw';
+  hpLeft: number;
 }
 
 export interface FightTimeline {
+  fight: FightTimelineOutcome;
   duration: number;
   maxHp: number;
   bothInRange: number | null;
@@ -26,69 +33,58 @@ export interface FightTimeline {
   b: FightSeriesData;
 }
 
+interface CombatSideTimeline {
+  points: HpPoint[];
+  deathTime: number | null;
+  modelDeathTimes: ModelDeathTime[];
+}
+
+interface CombatTimeline {
+  attacker: CombatSideTimeline;
+  defender: CombatSideTimeline;
+  duration: number;
+  fight: FightTimelineOutcome;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FightTimelineService {
   private readonly matchup = inject(MatchupService);
 
-  buildSeries(unit: Unit, opponent: Unit, fight: FightResult): FightSeriesData | null {
-    const durations = [fight.effectiveAttacker, fight.effectiveDefender].filter((value) =>
-      Number.isFinite(value),
-    );
-    const duration = durations.length > 0 ? Math.min(...durations) : 0;
-    if (!Number.isFinite(duration) || duration <= 0) {
-      return null;
-    }
-
-    const hpSeriesResult = this.hpSeries(opponent, unit, duration);
-    const points = this.withEndpoint(hpSeriesResult.points, duration);
-    return {
-      name: unit.name,
-      startHp: unit.hpSquad,
-      finalHp: points[points.length - 1].hp,
-      duration,
-      points,
-      deathTime: hpSeriesResult.deathTime,
-      modelDeathTimes: hpSeriesResult.modelDeathTimes,
-    };
+  buildSeries(unit: Unit, opponent: Unit): FightSeriesData | null {
+    const combat = this.combat_time_line(unit, opponent);
+    return combat && this.toSeries(unit, combat.attacker);
   }
 
-  buildChart(a: Unit, d: Unit, fight: FightResult): FightTimeline | null {
-    const aSeries = this.buildSeries(a, d, fight);
-    const bSeries = this.buildSeries(d, a, fight);
-    if (!aSeries || !bSeries) {
+  buildChart(a: Unit, d: Unit): FightTimeline | null {
+    const combat = this.combat_time_line(a, d);
+    if (!combat) {
       return null;
     }
+    console.log('combat', combat);
+    const aSeries = this.toSeries(a, combat.attacker);
+    const bSeries = this.toSeries(d, combat.defender);
 
     return {
-      duration: aSeries.duration,
+      fight: combat.fight,
+      duration: combat.duration,
       maxHp: Math.max(1, aSeries.startHp, bSeries.startHp),
-      bothInRange: this.bothInRangeTime(a, d, aSeries.duration),
+      bothInRange: this.bothInRangeTime(a, d, combat.duration),
       a: aSeries,
       b: bSeries,
     };
   }
 
-  hpAt(points: readonly HpPoint[], t: number): number {
-    let hp = points[0]?.hp ?? 0;
-    for (const point of points) {
-      if (point.t > t + 1e-9) {
-        break;
-      }
-      hp = point.hp;
-    }
-    return hp;
-  }
-
-  unionTimes(a: readonly HpPoint[], b: readonly HpPoint[]): number[] {
-    const times = [...a, ...b].map((point) => point.t).sort((left, right) => left - right);
-    const result: number[] = [];
-    for (const t of times) {
-      const previous = result[result.length - 1];
-      if (previous === undefined || t - previous > 1e-9) {
-        result.push(t);
-      }
-    }
-    return result;
+  private toSeries(unit: Unit, timeline: CombatSideTimeline): FightSeriesData {
+    const points = timeline.points;
+    return {
+      name: unit.name,
+      squadSize: unit.squadSize,
+      startHp: unit.hpSquad,
+      finalHp: points[points.length - 1].hp,
+      points,
+      deathTime: timeline.deathTime,
+      modelDeathTimes: timeline.modelDeathTimes,
+    };
   }
 
   private bothInRangeTime(a: Unit, d: Unit, duration: number): number | null {
@@ -96,57 +92,131 @@ export class FightTimelineService {
     return Number.isFinite(time) && time > 0 && time <= duration + 1e-9 ? time : null;
   }
 
-  private withEndpoint(points: HpPoint[], duration: number): HpPoint[] {
-    const last = points[points.length - 1];
-    if (last && last.t < duration) {
-      points.push({ t: duration, hp: last.hp });
+  private combat_time_line(
+    attacker: Unit,
+    defender: Unit,
+  ): CombatTimeline | null {
+    const attackerModels = Array.from({ length: attacker.squadSize }, () => attacker.hp);
+    const defenderModels = Array.from({ length: defender.squadSize }, () => defender.hp);
+    const attackerTimeline: CombatSideTimeline = {
+      points: [{ t: 0, hp: attacker.hpSquad }],
+      deathTime: null,
+      modelDeathTimes: [],
+    };
+    const defenderTimeline: CombatSideTimeline = {
+      points: [{ t: 0, hp: defender.hpSquad }],
+      deathTime: null,
+      modelDeathTimes: [],
+    };
+    const attackerSplashTargets = this.matchup.splashTargets(attacker, defender);
+    const defenderSplashTargets = this.matchup.splashTargets(defender, attacker);
+    let nextAttackerVolley =
+      this.matchup.canAttack(attacker) && this.matchup.canEngage(attacker, defender)
+        ? this.matchup.closingTime(attacker, defender) + attacker.interval
+        : Number.POSITIVE_INFINITY;
+    let nextDefenderVolley =
+      this.matchup.canAttack(defender) && this.matchup.canEngage(defender, attacker)
+        ? this.matchup.closingTime(defender, attacker) + defender.interval
+        : Number.POSITIVE_INFINITY;
+
+    while (
+      attackerModels.some((hp) => hp > 0) &&
+      defenderModels.some((hp) => hp > 0)
+    ) {
+      const time = Math.min(nextAttackerVolley, nextDefenderVolley);
+      if (!Number.isFinite(time)) {
+        return null;
+      }
+
+      const attackerFires = nextAttackerVolley === time;
+      const defenderFires = nextDefenderVolley === time;
+      const attackerCount = attackerModels.filter((hp) => hp > 0).length;
+      const defenderCount = defenderModels.filter((hp) => hp > 0).length;
+      const defenderHits = attackerFires
+        ? attackerCount * attacker.shotsPerVolley * attackerSplashTargets
+        : 0;
+      const attackerHits = defenderFires
+        ? defenderCount * defender.shotsPerVolley * defenderSplashTargets
+        : 0;
+
+      if (attackerFires) {
+        nextAttackerVolley += attacker.interval;
+      }
+      if (defenderFires) {
+        nextDefenderVolley += defender.interval;
+      }
+
+      if (attackerFires) {
+        this.applyHits(defenderModels, attacker, attackerCount,attackerSplashTargets);
+      }
+      if (defenderFires) {
+        this.applyHits(attackerModels, defender, defenderCount,defenderSplashTargets);
+      }
+
+      const attackerHp = attackerModels.reduce((total, hp) => total + hp, 0);
+      const defenderHp = defenderModels.reduce((total, hp) => total + hp, 0);
+      const attackerDeaths = attackerCount - attackerModels.filter((hp) => hp > 0).length;
+      const defenderDeaths = defenderCount - defenderModels.filter((hp) => hp > 0).length;
+      if (attackerDeaths > 0) {
+        attackerTimeline.modelDeathTimes.push([time, attackerDeaths]);
+      }
+      if (defenderDeaths > 0) {
+        defenderTimeline.modelDeathTimes.push([time, defenderDeaths]);
+      }
+      attackerTimeline.points.push({ t: time, hp: attackerHp });
+      defenderTimeline.points.push({ t: time, hp: defenderHp });
+      if (attackerHp <= 0) {
+        attackerTimeline.deathTime = time;
+      }
+      if (defenderHp <= 0) {
+        defenderTimeline.deathTime = time;
+      }
     }
-    return points;
+
+    const attackerHp = attackerTimeline.points.at(-1)?.hp ?? attacker.hpSquad;
+    const defenderHp = defenderTimeline.points.at(-1)?.hp ?? defender.hpSquad;
+    if (attackerHp > 0 && defenderHp > 0) {
+      return null;
+    }
+
+    return {
+      attacker: attackerTimeline,
+      defender: defenderTimeline,
+      duration: Math.max(
+        attackerTimeline.deathTime ?? 0,
+        defenderTimeline.deathTime ?? 0,
+      ),
+      fight: {
+        winner:
+          attackerHp <= 0 && defenderHp <= 0
+            ? 'draw'
+            : attackerHp > 0
+              ? 'attacker'
+              : 'defender',
+        hpLeft: attackerHp <= 0 && defenderHp <= 0 ? 0 : Math.max(attackerHp, defenderHp),
+      },
+    };
   }
 
-  private hpSeries(
-    attacker: Unit,
-    target: Unit,
-    duration: number,
-  ): { points: HpPoint[]; deathTime: number | null; modelDeathTimes: number[] } {
-    const points: HpPoint[] = [{ t: 0, hp: target.hpSquad }];
-    const closing = this.matchup.closingTime(attacker, target);
-    const ticks = this.matchup.nbVolleysToKill(attacker, target);
-    if (!Number.isFinite(closing) || ticks === null) {
-      return { points, deathTime: null, modelDeathTimes: [] };
-    }
-
-    const perModel = this.matchup.nbShotsToKillOneModel(attacker, target);
-    if (perModel === null) {
-      return { points, deathTime: null, modelDeathTimes: [] };
-    }
-
-    const slots = attacker.squadSize * this.matchup.splashTargets(attacker, target);
-    let deathTime: number | null = null;
-    const modelDeathTimes: number[] = [];
-    let lastKilled = 0;
-    for (let volley = 1; volley <= ticks; volley++) {
-      const t = closing + volley * attacker.interval;
-      if (t > duration + 1e-9) {
-        break;
-      }
-      const hits = volley * slots;
-      const killed = Math.min(target.squadSize, Math.floor(hits / perModel));
-      const leftover = hits % perModel;
-      const scratch = Math.min(target.hp, leftover * attacker.damagePerAttack);
-      const hp = Math.max(0, (target.squadSize - killed) * target.hp - scratch);
-      if (killed > lastKilled) {
-        for (let i = lastKilled; i < killed; i++) {
-          modelDeathTimes.push(t);
+  private applyHits(models: number[], attacker: Unit, attackerCount: number, splashTargets: number): void {
+    let shoots = attacker.shotsPerVolley * attackerCount;
+    while (shoots > 0) {
+      shoots--;
+      let targetIndex = -1;
+      for (let i = 0; i < models.length; i++) {
+        if (models[i] > 0 ) {
+          targetIndex = i;
+          break;
         }
-        lastKilled = killed;
       }
-      points.push({ t, hp });
-      if (hp <= 0 && deathTime === null) {
-        deathTime = t;
-        break;
+      if (targetIndex < 0) {
+        return;
+      }
+      for (let i = targetIndex; i < targetIndex + splashTargets; i++) {
+        if (i < models.length) {
+          models[i] = Math.max(0, models[i] - attacker.atk);
+        }
       }
     }
-    return { points, deathTime, modelDeathTimes };
   }
 }

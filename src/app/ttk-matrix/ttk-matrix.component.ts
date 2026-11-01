@@ -139,7 +139,7 @@ export class TtkMatrix {
     const ratio = median > 0 ? this.normalized(ttk, attacker, defender) / median : 1;
     const lines = [
       `${attacker.name} vs ${defender.name}:`,
-      `number of shots to kill one model: ${this.matchup.nbShotsToKillOneModel(attacker, defender)} = Math.ceil(${defender.hp} hp / ${attacker.damagePerAttack} damage) `,
+      `number of shots to kill one model: ${this.matchup.nbShotsToKillOneModel(attacker, defender)} = Math.ceil(${defender.hp} hp / ${attacker.atk} damage) `,
     ];
     if (defender.squadSize > 1) {
       lines.push(

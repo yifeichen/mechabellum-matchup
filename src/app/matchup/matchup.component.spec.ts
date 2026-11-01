@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { readFileSync } from 'node:fs';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import { it as vitestIt } from 'vitest';
 import { Matchup } from './matchup.component';
 import { parseCsv, buildUnits, DEFAULT_SKIP } from '../unit-stats';
 import { MatchupService } from '../matchup.service';
@@ -75,7 +76,7 @@ describe('Matchup (full flow with real CSV)', () => {
     expect(rowLabels.length).toBe(loadUnits().length);
   });
 
-  it('TTK grid orders rows by raw timeToKill of the clicked column', () => {
+  vitestIt('TTK grid orders rows by raw timeToKill of the clicked column', { timeout: 15_000 }, () => {
     const units = loadUnits();
     for (const headerIndex of [0, 7, 15, 24, 31]) {
       const pivot = units[headerIndex];

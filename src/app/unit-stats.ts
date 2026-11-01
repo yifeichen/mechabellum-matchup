@@ -147,7 +147,6 @@ export function buildUnit(row: Row): Unit | null {
   const targetsAir = (row['Target'] ?? '').trim().toLowerCase().startsWith('both');
 
   const squadSize = Math.max(1, Math.round(parseRange(row['Squad Size']) ?? 0));
-  const damagePerAttack = atkValue * volley;
 
   const unit: Unit = {
     name,
@@ -164,7 +163,6 @@ export function buildUnit(row: Row): Unit | null {
     flying,
     targetsAir,
     hpSquad: hp * squadSize,
-    damagePerAttack,
   };
   return unit;
 }

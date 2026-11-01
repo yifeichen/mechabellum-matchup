@@ -55,7 +55,7 @@ export class MatchupService {
   }
 
   canAttack(unit: Unit): boolean {
-    return unit.interval > 0 && unit.damagePerAttack > 0;
+    return unit.interval > 0 && unit.atk > 0 && unit.shotsPerVolley > 0;
   }
 
   nbShotsToKillOneModel(attacker: Unit, defender: Unit): number | null {
@@ -65,7 +65,7 @@ export class MatchupService {
     if (defender.hp <= 0) {
       return null;
     }
-    return Math.ceil(defender.hp / attacker.damagePerAttack);
+    return Math.ceil(defender.hp / attacker.atk);
   }
 
   splashTargets(attacker: Unit, defender: Unit): number {
@@ -101,7 +101,8 @@ export class MatchupService {
     if (hitsNeeded === null) {
       return null;
     }
-    const shots = attacker.squadSize * this.splashTargets(attacker, defender);
+    const shots =
+      attacker.squadSize * attacker.shotsPerVolley * this.splashTargets(attacker, defender);
     return Math.ceil(hitsNeeded / shots);
   }
 
@@ -137,10 +138,14 @@ export class MatchupService {
       const attackerCount = attackerModels.filter((hp) => hp > 0).length;
       const defenderCount = defenderModels.filter((hp) => hp > 0).length;
       const hitsOnDefender = attackerFires
-        ? attackerCount * this.splashTargets(attacker, { ...defender, squadSize: defenderCount })
+        ? attackerCount *
+          attacker.shotsPerVolley *
+          this.splashTargets(attacker, { ...defender, squadSize: defenderCount })
         : 0;
       const hitsOnAttacker = defenderFires
-        ? defenderCount * this.splashTargets(defender, { ...attacker, squadSize: attackerCount })
+        ? defenderCount *
+          defender.shotsPerVolley *
+          this.splashTargets(defender, { ...attacker, squadSize: attackerCount })
         : 0;
 
       if (attackerFires) {
@@ -151,8 +156,8 @@ export class MatchupService {
         nextDefenderVolley += defender.interval;
       }
 
-      applyHitSlots(defenderModels, hitsOnDefender, attacker.damagePerAttack);
-      applyHitSlots(attackerModels, hitsOnAttacker, defender.damagePerAttack);
+      applyHitSlots(defenderModels, hitsOnDefender, attacker.atk);
+      applyHitSlots(attackerModels, hitsOnAttacker, defender.atk);
 
       if (!defenderModels.some((hp) => hp > 0)) {
         return {
@@ -192,7 +197,7 @@ export class MatchupService {
     const volleys =
       loser.interval > 0 && firingWindow > 0 ? Math.floor(firingWindow / loser.interval) : 0;
     const targets = this.splashTargets(loser, winner);
-    const hits = volleys * loser.squadSize * targets;
+    const hits = volleys * loser.squadSize * loser.shotsPerVolley * targets;
     const perModel = this.nbShotsToKillOneModel(loser, winner);
     let killed = 0;
     let leftover = 0;
@@ -201,7 +206,7 @@ export class MatchupService {
       killed = Math.min(winner.squadSize, Math.floor(hits / perModel));
       leftover = hits - killed * perModel;
       if (killed < winner.squadSize) {
-        scratch = leftover * loser.damagePerAttack;
+        scratch = leftover * loser.atk;
       }
     }
     const hpLeft = Math.max(0, (winner.squadSize - killed) * winner.hp - scratch);
